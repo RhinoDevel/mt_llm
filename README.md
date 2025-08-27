@@ -3,7 +3,7 @@
 *Marcel Timm, RhinoDevel, 2025*
 
 **mt_llm** is a C++ library for Linux and Windows that offers a pure C interface
-to the awesome large-language model inference engine system called
+to the awesome large-language model inference engine called
 [llama.cpp](https://github.com/ggml-org/llama.cpp) by Georgi Gerganov.
 
 **mt_llm** supports:
@@ -30,6 +30,11 @@ No details for Linux here, yet, but you can take a look at the Windows
 instructions below and at the [Makefile](./mt_llm/Makefile).
 
 ## Windows
+
+#### Note:
+
+All the following examples are building static libraries, there may be use cases
+where dynamically linked libraries are sufficient, too.
 
 ### Build [llama.cpp](https://github.com/ggml-org/llama.cpp)
 
