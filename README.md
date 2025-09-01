@@ -6,9 +6,17 @@
 to the awesome large-language model inference engine called
 [llama.cpp](https://github.com/ggml-org/llama.cpp) by Georgi Gerganov.
 
+**mt_llm** is intended to be used for single-user LLM inference.
+
 **mt_llm** supports:
 
-...
+- Simplified/reduced configuration parameters.
+- Simple init./query/reset/deinit. functions.
+- Callback to send tokens to and more and let the callback decide, when to stop
+  inference.
+- Snapshot interface to store/update/reset the current LLM state (using RAM).
+- Let the callback retrieve the probabilities of the digits 0 to 9 being the
+  next inferred token while ignoring sampling (e.g. for categorization).
 
 ## How To
 
