@@ -96,7 +96,11 @@ lib\x64\cudart.lib
 
 ### Test [llama.cpp](https://github.com/ggml-org/llama.cpp) (without mt_llm)
 
-...
+The [llama.cpp](https://github.com/ggml-org/llama.cpp) binaries are also created
+by the build described above.
+
+E.g. for a release build, you can find them at
+`mt_llm\llama.cpp\build-x64-windows-msvc-release\bin`.
 
 ### Build mt_llm
 
