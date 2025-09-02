@@ -46,7 +46,53 @@ where dynamically linked libraries are sufficient, too.
 
 ### Build [llama.cpp](https://github.com/ggml-org/llama.cpp)
 
-...
+#### Compile `llama.lib`, `ggml.lib` and `common.lib` as static libraries
+
+Compile the necessary `llama.lib`, `ggml.lib` and `common.lib` libraries via
+Visual Studio and `mt_llm/llama.cpp/CMakeLists.txt` as static libraries.
+
+To do that, select `x64-windows-msvc-debug` or `x64-windows-msvc-release` as
+configuration, in Visual Studio.
+
+Also modify the file `mt_llm/llama.cpp/CMakePresets.json` which is created by
+Visual Studio:
+
+Add
+
+```
+, "BUILD_SHARED_LIBS": "OFF"
+, "LLAMA_CURL": "OFF"
+```
+
+to the properties of `configurePresets.cacheVariables`, where the `"name"` is
+`"base"`.
+
+#### CUDA build
+
+Modify the file `llama.cpp/CMakePresets.json`:
+
+Add
+
+```
+, "GGML_CUDA":  "ON"
+```
+
+to the properties of `configurePresets.cacheVariable`, where the `"name"` is
+`"base"`.
+
+Additionally link **mt_llm** with this (from the llama.cpp build result folder):
+
+```
+ggml\src\ggml-cuda\ggml-cuda.lib
+```
+
+Additionally link **mt_llm** with these (from the CUDA folder):
+
+```
+lib\x64\cublas.lib
+lib\x64\cuda.lib
+lib\x64\cudart.lib
+```
 
 ### Test [llama.cpp](https://github.com/ggml-org/llama.cpp) (without mt_llm)
 
