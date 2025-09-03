@@ -117,6 +117,7 @@ E.g. for a release build, you can find them at
   - `mt_llm\mt_llm.h`
   - `mt_llm\mt_llm_lib.h`
   - `mt_llm\mt_llm_p.h`
+  - `mt_llm\mt_llm_tok_type.h`
   - `mt_llm\mt_llm_snapshot.h`
 
 - Also copy a [supported](mt_llm/mt_llm_model.cpp)
@@ -126,7 +127,99 @@ E.g. for a release build, you can find them at
 - Go to the new folder and create a file `main.c` with the following code:
 
 ```
-...
+#include "mt_llm.h"
+#include "mt_llm_p.h"
+#include "mt_llm_tok_type.h"
+
+#include <string.h>
+#include <stdio.h>
+
+static bool my_callback(
+    int tok,
+    char const * piece,
+    int type,
+    float const * dig_probs)
+{
+    if(type == MT_TOK_TYPE_SAMPLED_NON_EOG_NON_CONTROL)
+    {
+        // This example may not display all characters correctly..
+        printf("%s", piece);
+    }
+    else
+    {
+        if(type == MT_TOK_TYPE_SAMPLED_EOG)
+        {
+            printf("\n\n");
+        }
+    }
+    return false;
+}
+
+int main()
+{
+    struct mt_llm_p p;
+    
+    // *****************************
+    // *** Setup the parameters: ***
+    // *****************************
+    
+    p.n_gpu_layers = 0;
+    
+    p.seed = -1;
+    p.n_ctx = 2048;
+    p.threads = 0;
+    p.flash_attn = 0;
+    
+    p.top_k = 40;
+    p.top_p = 0.95;
+    p.min_p = 0.05;
+    p.temp = 0.8;
+    p.grammar[0] = '\0';
+    
+    strncpy(
+        p.model_file_path,
+        "gemma-3-1b-it-Q5_K_M.gguf",
+        MT_LLM_P_LEN_MODEL_FILE_PATH);
+
+    strncpy(
+        p.sys_prompt,
+        "You are a helpful AI assistant.",
+        MT_LLM_P_LEN_SYS_PROMPT);
+    p.prompt_beg_delim[0];
+    p.prompt_end_delim[0] = '\0';
+    p.sys_prompt_beg_delim[0] = '\0';
+    p.sys_prompt_mid_delim[0] = '\0';
+    p.sys_prompt_end_delim[0] = '\0';
+    p.rev_prompt[0] = '\0';
+    p.think_beg_delim[0] = '\0';
+    p.think_end_delim[0] = '\0';
+
+    p.try_prompts_by_model = true;
+
+    p.callback = my_callback;
+
+    // **************************
+    // *** Initialize mt_llm: ***
+    // **************************
+
+    mt_llm_reinit(&p); // Ignoring return value, here..
+    
+    // **********************
+    // *** Query the LLM: ***
+    // **********************
+    
+    mt_llm_query("Please tell me a very short story about a dog!");
+    
+    // (inference is running here, and will call the callback for each token)
+    
+    // ****************************
+    // *** Deinitialize mt_llm: ***
+    // ****************************
+
+    mt_llm_deinit();
+
+    return 0;
+}
 ```
 
 - Compile via `cl main.c mt_llm.lib`.
