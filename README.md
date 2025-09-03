@@ -109,4 +109,25 @@ E.g. for a release build, you can find them at
 
 ### Test mt_llm
 
+- Get the DLL and LIB files resulting from the build, e.g. for release mode
+  `x64\Release\mt_llm.dll` and `x64\Release\mt_llm.lib`, copy them to a new
+  folder.
+
+- Copy the following header files to that new folder, too:
+  - `mt_llm\mt_llm.h`
+  - `mt_llm\mt_llm_lib.h`
+  - `mt_llm\mt_llm_p.h`
+  - `mt_llm\mt_llm_snapshot.h`
+
+- Also copy a [supported](mt_llm/mt_llm_model.cpp)
+  [GGUF model file](https://huggingface.co/unsloth/gemma-3-1b-it-GGUF/resolve/main/gemma-3-1b-it-Q5_K_M.gguf?download=true)
+  to the same new folder.
+
+- Go to the new folder and create a file `main.c` with the following code:
+
+```
 ...
+```
+
+- Compile via `cl main.c mt_llm.lib`.
+- Run `main.exe`.
