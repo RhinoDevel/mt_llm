@@ -185,7 +185,7 @@ int main()
         p.sys_prompt,
         "You are a helpful AI assistant.",
         MT_LLM_P_LEN_SYS_PROMPT);
-    p.prompt_beg_delim[0];
+    p.prompt_beg_delim[0] = '\0';
     p.prompt_end_delim[0] = '\0';
     p.sys_prompt_beg_delim[0] = '\0';
     p.sys_prompt_mid_delim[0] = '\0';
