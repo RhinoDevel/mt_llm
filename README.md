@@ -221,6 +221,6 @@ int main(void)
     return 0;
 }
 ```
-
+- Open `x64 Native Tools Command Prompt for VS 2022` commandline.
 - Compile via `cl main.c mt_llm.lib`.
 - Run `main.exe`.
