@@ -7,7 +7,9 @@ An example about how to implement a
 **S**peech-**T**o-**T**ext -> **L**arge-**L**anguage-**M**odel -> **T**ext-**T**o-**S**peech
 
 pipeline in C, via mt_stt, mt_llm and mt_tts, which are C/C++ wrapper
-libraries for Whisper.cpp, Llama.cpp and Piper.
+libraries for [Whisper.cpp](https://github.com/ggml-org/whisper.cpp),
+[Llama.cpp](https://github.com/ggml-org/llama.cpp)
+and [Piper](https://github.com/rhasspy/piper).
 
 ## Note
 
