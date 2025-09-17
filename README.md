@@ -155,7 +155,7 @@ static bool my_callback(
     return false;
 }
 
-int main()
+int main(void)
 {
     struct mt_llm_p p;
     
