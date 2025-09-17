@@ -18,6 +18,14 @@ to the awesome large-language model inference engine called
 - Let the callback retrieve the probabilities of the digits 0 to 9 being the
   next inferred token while ignoring sampling (e.g. for categorization).
 
+## STT -> LLM -> TTS pipeline example in C
+
+Take a look at the example showing a simple **S**peech-**To**-**T**ext,
+**L**arge-**L**anguage-**M**odel, **T**ext-**T**o-**S**peech pipeline via
+[mt_stt](https://github.com/RhinoDevel/mt_stt),
+[mt_llm](./)
+and [mt_tts](https://github.com/RhinoDevel/mt_tts)!
+
 ## How To
 
 Clone the **mt_llm** repository:
