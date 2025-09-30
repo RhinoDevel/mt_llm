@@ -21,11 +21,6 @@ static llama_context_params get_ctx_params(mt_llm_p const & mt_p)
     ret_val.n_threads = mt_p.threads;
     ret_val.n_threads_batch = ret_val.n_threads;
 
-    // Flash attention does not always speed-up the process in llama.cpp, yet:
-    //
-    assert(mt_p.flash_attn == 0 || mt_p.flash_attn == 1);
-    ret_val.flash_attn = mt_p.flash_attn != 0;
-
     // Inference and decoding code is also written to use batch size of one:
     //
     ret_val.n_batch = 1; // Logical max. batch size.

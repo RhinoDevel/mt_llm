@@ -43,8 +43,6 @@ struct mt_llm_p
     uint32_t threads; // Number of threads to use for inference
                       // (0 = system-dependent).
 
-    uint8_t flash_attn; // 0 = false, otherwise true.
-
     // *****************************
     // *** llama_sampling_params ***
     // *****************************

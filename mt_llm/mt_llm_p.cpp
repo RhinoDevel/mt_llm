@@ -16,7 +16,6 @@ void mt_llm_p_print(struct mt_llm_p const & mt_p)
     MT_LOG("seed" ": "  "%u" "\n", mt_p.seed);
     MT_LOG("n_ctx" ": " "%u" "\n", mt_p.n_ctx);
     MT_LOG("threads" ": " "%u" "\n", mt_p.threads);
-    MT_LOG("flash_attn" ": " "%u" "\n", mt_p.flash_attn);
 
     MT_LOG("top_k" ": " "\"%d\"" "\n", mt_p.top_k);
     MT_LOG("top_p" ": " "\"%f\"" "\n", mt_p.top_p);
@@ -73,7 +72,6 @@ struct mt_llm_p * mt_llm_p_create_copy(struct mt_llm_p const & mt_p)
     copy->seed = mt_p.seed;
     copy->n_ctx = mt_p.n_ctx;
     copy->threads = mt_p.threads;
-    copy->flash_attn = mt_p.flash_attn;
 
     copy->top_k = mt_p.top_k;
     copy->top_p = mt_p.top_p;
