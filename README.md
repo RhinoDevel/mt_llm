@@ -177,7 +177,6 @@ int main(void)
     p.seed = -1;
     p.n_ctx = 2048;
     p.threads = 0;
-    p.flash_attn = 0;
     
     p.top_k = 40;
     p.top_p = 0.95;
