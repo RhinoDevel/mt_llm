@@ -269,6 +269,7 @@ static const struct prompt_template s_qwen3 = // <- Add this to "the" array.
         "</think>");
 
 static char const * const s_model_names_gemma[] = {
+    "Gemma-3-270M-It",
     "Gemma 2 2b It",
     "Gemma 3 1b It",
     "Gemma-3-1B-It",
