@@ -208,6 +208,7 @@ static const struct prompt_template s_llama3 = { // <- Add this to "the" array.
 static char const * const s_model_names_qwen[] = {
     "Qwen2-0.5B-Instruct",
     "Qwen2-1.5B-Instruct",
+    "qwen2-1_5b-instruct",
     "Qwen2.5 0.5B Instruct",
     "Qwen2.5 1.5B Instruct",
     "Qwen2.5 3B Instruct",
