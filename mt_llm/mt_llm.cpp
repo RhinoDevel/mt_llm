@@ -842,7 +842,7 @@ MT_EXPORT_LLM_API void __stdcall mt_llm_deinit()
 MT_EXPORT_LLM_API bool __stdcall mt_llm_reinit(
     struct mt_llm_p const * const mt_p)
 {
-    //common_init(); // Not calling this, seems to work anyway..
+    common_init();
 
     common_log_pause(common_log_main());
     //
