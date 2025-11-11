@@ -434,6 +434,25 @@ static const struct prompt_template s_olmo = { // <- Add this to "the" array.
     .n_sys_keep = -1 // Not supported (use create macro, if wanted).
 };
 
+static char const * const s_model_names_granite4[] = {
+    "Granite-4.0-H-1B",
+    "Granite-4.0-H-Micro",
+    // Add more, when necessary.
+    NULL // <- DON'T FORGET THIS TERMINATING NULL ENTRY!
+};
+// https://huggingface.co/CohereLabs/aya-expanse-8b/blob/main/tokenizer_config.json
+static const struct prompt_template s_granite4 = // <- Add this to "the" array.
+MT_LLM_MODEL_CREATE(
+    s_model_names_granite4,
+    "<|start_of_role|>",
+    "system" "<|end_of_role|>",
+    "user" "<|end_of_role|>",
+    "assistant" "<|end_of_role|>",
+    "<|end_of_text|>" "\n",
+    "",
+    "",
+    "");
+
 // *****************************************************************************
 
 static struct prompt_template const * const s_prompt_templates[] = {
@@ -449,6 +468,7 @@ static struct prompt_template const * const s_prompt_templates[] = {
     &s_mistral,
     &s_mistral7b_v0_2,
     &s_olmo,
+    &s_granite4,
     // Add more, when necessary.
     NULL // <- DON'T FORGET THIS TERMINATING NULL ENTRY!
 };
