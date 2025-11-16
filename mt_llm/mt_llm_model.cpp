@@ -213,6 +213,8 @@ static char const * const s_model_names_qwen[] = {
     "Qwen2.5 1.5B Instruct",
     "Qwen2.5 3B Instruct",
     "Qwen2.5 7B Instruct",
+    "Qwen3-4B-Instruct-2507",
+    "Qwen3-30B-A3B-Instruct-2507",
     "Virtuoso Small v2", // From Arcee AI, based on Qwen2.5 14B.
     "Finalize Slerp", // Lamarck-14B-v0.7
     "MiniCPM3 4B", // By OpenBMB.
@@ -243,6 +245,7 @@ static const struct prompt_template s_qwen = // <- Add this to "the" array.
 
 static char const * const s_model_names_qwen3[] = {
     "Qwen3-0.6B",
+    "Qwen3-1.7B",
     "Qwen3 8B",
     "Qwen3 14B",
     "Qwen3-30B-A3B",
