@@ -58,6 +58,10 @@ struct mt_llm_p
     // *** Others ***
     // **************
 
+    // Keep all Mixture of Experts (MoE) weights in the CPU:
+    //
+    uint8_t cpu_moe; // 0 = false, true otherwise.
+
     char model_file_path[MT_LLM_P_LEN_MODEL_FILE_PATH]; 
 
     char sys_prompt[MT_LLM_P_LEN_SYS_PROMPT]; // E.g.: "You are a helpful AI."

@@ -184,6 +184,8 @@ int main(void)
     strncpy(p.model_file_path, s_llm_model_path, MT_LLM_P_LEN_MODEL_FILE_PATH);
     strncpy(p.sys_prompt, s_llm_sys_prompt, MT_LLM_P_LEN_SYS_PROMPT);
     
+    p.cpu_moe = 0;
+    
     // These will be automatically set by mt_llm (if model is supported..):
     p.prompt_beg_delim[0] = '\0';
     p.prompt_end_delim[0] = '\0';
@@ -194,7 +196,7 @@ int main(void)
     p.think_beg_delim[0] = '\0';
     p.think_end_delim[0] = '\0';
 
-    p.try_prompts_by_model = true;
+    p.try_prompts_by_model = 1;
 
     p.callback = llm_callback;
 

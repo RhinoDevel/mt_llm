@@ -9,6 +9,7 @@
 
 #include "llama.h"
 #include "llama-vocab.h"
+#include "common.h"
 
 #include "mt_llm_model.h"
 #include "mt_llm_log.h"
@@ -602,6 +603,18 @@ static llama_model_params get_model_params(mt_llm_p const & mt_p)
     ret_val.n_gpu_layers = mt_p.n_gpu_layers;
     //ret_val.use_mlock // Default: false.
     //ret_val.use_mmap // Default: true.
+
+    if(mt_p.cpu_moe != 0)
+    {
+        // Keep all Mixture of Experts (MoE) weights in the CPU.
+
+        // Not sure, if this static constant variable is the best way..
+
+        static const llama_model_tensor_buft_override cpu_moe =
+            llm_ffn_exps_cpu_override();
+
+        ret_val.tensor_buft_overrides = &cpu_moe;
+    }
 
     return ret_val;
 }

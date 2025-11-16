@@ -184,6 +184,8 @@ int main(void)
     p.temp = 0.8;
     p.grammar[0] = '\0';
     
+    p.cpu_moe = 0;
+    
     strncpy(
         p.model_file_path,
         "gemma-3-1b-it-Q5_K_M.gguf",
@@ -202,7 +204,7 @@ int main(void)
     p.think_beg_delim[0] = '\0';
     p.think_end_delim[0] = '\0';
 
-    p.try_prompts_by_model = true;
+    p.try_prompts_by_model = 1;
 
     p.callback = my_callback;
 
