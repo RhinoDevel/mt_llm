@@ -37,9 +37,6 @@
     <ClCompile Include="mt_llm_p.cpp" />
     <ClCompile Include="mt_llm_snapshot.cpp" />
   </ItemGroup>
-  <ItemGroup>
-    <Text Include="README.txt" />
-  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
