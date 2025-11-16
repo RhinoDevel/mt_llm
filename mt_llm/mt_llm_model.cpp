@@ -479,10 +479,12 @@ static struct prompt_template const * const s_prompt_templates[] = {
 
 // *****************************************************************************
 
-// Only used by get_model_params():
-//
-static bool s_cpu_moe_is_init = false;
-static llama_model_tensor_buft_override s_cpu_moe; // Accessed externally!
+// Only used by get_model_params() (and read-accessed externally):
+static struct llama_model_tensor_buft_override s_tensor_buft_overrides[2] =
+    {
+        { .pattern = NULL, .buft = NULL },
+        { .pattern = NULL, .buft = NULL }
+    };
 
 static bool is_space(char const c)
 {
@@ -613,16 +615,18 @@ static llama_model_params get_model_params(mt_llm_p const & mt_p)
     {
         // Keep all Mixture of Experts (MoE) weights in the CPU.
 
-        // Not sure, if this is the best way to do this (sees like a stupid
-        // thing to do..):
-        //
-        if(!s_cpu_moe_is_init)
-        {
-            s_cpu_moe = llm_ffn_exps_cpu_override();
-            s_cpu_moe_is_init = true;
-        }
-        ret_val.tensor_buft_overrides = &s_cpu_moe;
+        // Not sure, if this is the best way to do this:
+
+        s_tensor_buft_overrides[0] = llm_ffn_exps_cpu_override();
     }
+    else
+    {
+        // First entry will act as NULL-terminator:
+
+        s_tensor_buft_overrides[0].pattern = NULL;
+        s_tensor_buft_overrides[0].buft = NULL;
+    }
+    ret_val.tensor_buft_overrides = s_tensor_buft_overrides;
 
     return ret_val;
 }
