@@ -479,6 +479,11 @@ static struct prompt_template const * const s_prompt_templates[] = {
 
 // *****************************************************************************
 
+// Only used by get_model_params():
+//
+static bool s_cpu_moe_is_init = false;
+static llama_model_tensor_buft_override s_cpu_moe; // Accessed externally!
+
 static bool is_space(char const c)
 {
     return std::isspace(static_cast<int>(static_cast<unsigned char>(c)));
@@ -608,12 +613,15 @@ static llama_model_params get_model_params(mt_llm_p const & mt_p)
     {
         // Keep all Mixture of Experts (MoE) weights in the CPU.
 
-        // Not sure, if this static constant variable is the best way..
-
-        static const llama_model_tensor_buft_override cpu_moe =
-            llm_ffn_exps_cpu_override();
-
-        ret_val.tensor_buft_overrides = &cpu_moe;
+        // Not sure, if this is the best way to do this (sees like a stupid
+        // thing to do..):
+        //
+        if(!s_cpu_moe_is_init)
+        {
+            s_cpu_moe = llm_ffn_exps_cpu_override();
+            s_cpu_moe_is_init = true;
+        }
+        ret_val.tensor_buft_overrides = &s_cpu_moe;
     }
 
     return ret_val;
