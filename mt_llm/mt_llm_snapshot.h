@@ -18,9 +18,9 @@
 extern "C" {
 #endif //__cplusplus
 
-MT_EXPORT_LLM_API void __stdcall mt_llm_snapshot_clear();
-MT_EXPORT_LLM_API bool __stdcall mt_llm_snapshot_update();
-MT_EXPORT_LLM_API bool __stdcall mt_llm_snapshot_restore();
+MT_EXPORT_LLM_API void __stdcall mt_llm_snapshot_clear(int const slot_index);
+MT_EXPORT_LLM_API bool __stdcall mt_llm_snapshot_update(int const slot_index);
+MT_EXPORT_LLM_API bool __stdcall mt_llm_snapshot_restore(int const slot_index);
 
 #ifdef __cplusplus
 }

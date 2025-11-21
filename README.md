@@ -212,13 +212,13 @@ int main(void)
     // *** Initialize mt_llm: ***
     // **************************
 
-    mt_llm_reinit(&p); // Ignoring return value, here..
+    mt_llm_reinit(&p, 0); // Ignoring return value, here..
     
     // **********************
     // *** Query the LLM: ***
     // **********************
     
-    mt_llm_query("Please tell me a very short story about a dog!");
+    mt_llm_query("Please tell me a very short story about a dog!", 0);
     
     // (inference is running here, and will call the callback for each token)
     
@@ -226,7 +226,7 @@ int main(void)
     // *** Deinitialize mt_llm: ***
     // ****************************
 
-    mt_llm_deinit();
+    mt_llm_deinit(0);
 
     return 0;
 }

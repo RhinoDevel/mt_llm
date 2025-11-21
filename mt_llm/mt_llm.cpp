@@ -22,7 +22,9 @@
 
 #include "mt_llm_tok_type.h"
 
-static struct mt_llm_s * s = nullptr;
+// mt_llm_snapshot is also hard-coded to two LLM slots!
+static struct mt_llm_s * s_slots[] = { nullptr, nullptr };
+static int s_active_slot_index = 0; // For callback_handler().
 
 /** Calculate the probability of each token's logit in the given vector via
  *  softmax.
@@ -64,14 +66,16 @@ static std::vector<float> get_probabilities(
  * - Returns an empty vector, if no last logits available.
  * - Original source: llama.cpp/tools/server/utils.hpp/get_token_probabilities()
  */
-static std::vector<float> get_last_logits(float& max)
+static std::vector<float> get_last_logits(float& max, int const slot_index)
 {
-    assert(s != nullptr);
-    assert(s->model != nullptr);
+    assert(slot_index == 0 || slot_index == 1);
+    assert(s_slots[slot_index] != nullptr);
+    assert(s_slots[slot_index]->model != nullptr);
 
     std::vector<float> ret_val;
 
-    float const * const logits = llama_get_logits_ith(s->ctx, -1);
+    float const * const logits = llama_get_logits_ith(
+        s_slots[slot_index]->ctx, -1);
 
     if(logits == nullptr)
     {
@@ -80,7 +84,7 @@ static std::vector<float> get_last_logits(float& max)
     }
 
     int32_t const n_vocab = llama_vocab_n_tokens(
-        llama_model_get_vocab(s->model));
+        llama_model_get_vocab(s_slots[slot_index]->model));
 
     assert(0 < n_vocab);
 
@@ -142,18 +146,19 @@ static bool callback_handler(
     std::string const & piece,
     std::vector<float> const & dig_probs)
 {
-    assert(s != nullptr);
-    assert(0 < s->last_tok_type);
+    assert(s_active_slot_index == 0 || s_active_slot_index == 1);
+    assert(s_slots[s_active_slot_index] != nullptr);
+    assert(0 < s_slots[s_active_slot_index]->last_tok_type);
 
     if(piece.empty()) // Token is omitted by llama.cpp => Also omit here.
     {
         return false; // <=> No interruption.
     }
 
-    return s->mt_p->callback(
+    return s_slots[s_active_slot_index]->mt_p->callback(
         static_cast<int>(tok),
         piece.c_str(),
-        s->last_tok_type,
+        s_slots[s_active_slot_index]->last_tok_type,
         dig_probs.empty() ? nullptr : dig_probs.data());
 }
 
@@ -164,14 +169,18 @@ static bool callback_handler(
  * - "Decode" as in using the decoder of the LLM architecture to add to its
  *   context.
  */
-static bool decode(char const * const str, int const tok_type)
+static bool decode(
+    char const * const str, int const tok_type, int const slot_index)
 {
-    s->last_tok_type = tok_type;
+    assert(slot_index == 0 || slot_index == 1);
 
+    s_slots[slot_index]->last_tok_type = tok_type;
+
+    s_active_slot_index = slot_index;
     int const str_tok_cnt = mt_llm_ctx_decode(
-            *s->ctx,
-            *s->sampler,
-            s->tok_cnt,
+            *s_slots[slot_index]->ctx,
+            *s_slots[slot_index]->sampler,
+            s_slots[slot_index]->tok_cnt,
             str,
             callback_handler);
 
@@ -180,7 +189,7 @@ static bool decode(char const * const str, int const tok_type)
         MT_LOG_ERR("Decoding!\n");
         return false;
     }
-    s->tok_cnt += str_tok_cnt;
+    s_slots[slot_index]->tok_cnt += str_tok_cnt;
     return true;
 }
 
@@ -188,32 +197,49 @@ static bool decode(char const * const str, int const tok_type)
  * - Just assumes that the context length is always long enough to hold the
  *   prompt to be decoded, here (no check..).
  */
-static bool decode_initial_query(char const * const prompt)
+static bool decode_initial_query(
+    char const * const prompt, int const slot_index)
 {
-    assert(s->mt_p->sys_prompt[0] != '\0');
+    assert(slot_index == 0 || slot_index == 1);
+    assert(s_slots[slot_index]->mt_p->sys_prompt[0] != '\0');
     assert(prompt != nullptr && prompt[0] != '\0');
 
-    if(!decode(s->mt_p->sys_prompt_beg_delim, MT_TOK_TYPE_DELIM))
+    if(!decode(
+            s_slots[slot_index]->mt_p->sys_prompt_beg_delim,
+            MT_TOK_TYPE_DELIM,
+            slot_index))
     {
         MT_LOG_ERR("Decoding system prompt begin delimiter!");
         return false;
     }
-    if(!decode(s->mt_p->sys_prompt, MT_TOK_TYPE_SYS_PROMPT))
+    if(!decode(
+            s_slots[slot_index]->mt_p->sys_prompt,
+            MT_TOK_TYPE_SYS_PROMPT,
+            slot_index))
     {
         MT_LOG_ERR("Decoding system prompt!");
         return false;
     }
-    if(!decode(s->mt_p->sys_prompt_mid_delim, MT_TOK_TYPE_DELIM))
+    if(!decode(
+            s_slots[slot_index]->mt_p->sys_prompt_mid_delim,
+            MT_TOK_TYPE_DELIM,
+            slot_index))
     {
         MT_LOG_ERR("Decoding system prompt middle delimiter!");
         return false;
     }
-    if(!decode(prompt, MT_TOK_TYPE_PROMPT))
+    if(!decode(
+            prompt,
+            MT_TOK_TYPE_PROMPT,
+            slot_index))
     {
         MT_LOG_ERR("Decoding prompt!");
         return false;
     }
-    if(!decode(s->mt_p->sys_prompt_end_delim, MT_TOK_TYPE_DELIM))
+    if(!decode(
+            s_slots[slot_index]->mt_p->sys_prompt_end_delim,
+            MT_TOK_TYPE_DELIM,
+            slot_index))
     {
         MT_LOG_ERR("Decoding system prompt end delimiter!");
         return false;
@@ -225,21 +251,29 @@ static bool decode_initial_query(char const * const prompt)
  * - Just assumes that the context length is always long enough to hold the
  *   prompt to be decoded, here (no check..).
  */
-static bool decode_follow_up_query(char const * const prompt)
+static bool decode_follow_up_query(
+    char const * const prompt, int const slot_index)
 {
+    assert(slot_index == 0 || slot_index == 1);
     assert(prompt != nullptr && prompt[0] != '\0');
 
-    if(!decode(s->mt_p->prompt_beg_delim, MT_TOK_TYPE_DELIM))
+    if(!decode(
+            s_slots[slot_index]->mt_p->prompt_beg_delim,
+            MT_TOK_TYPE_DELIM,
+            slot_index))
     {
         MT_LOG_ERR("Decoding prompt begin delimiter!");
         return false;
     }
-    if(!decode(prompt, MT_TOK_TYPE_PROMPT))
+    if(!decode(prompt, MT_TOK_TYPE_PROMPT, slot_index))
     {
         MT_LOG_ERR("Decoding prompt!");
         return false;
     }
-    if(!decode(s->mt_p->prompt_end_delim, MT_TOK_TYPE_DELIM))
+    if(!decode(
+            s_slots[slot_index]->mt_p->prompt_end_delim,
+            MT_TOK_TYPE_DELIM,
+            slot_index))
     {
         MT_LOG_ERR("Decoding prompt end delimiter!");
         return false;
@@ -247,13 +281,14 @@ static bool decode_follow_up_query(char const * const prompt)
     return true;
 }
 
-static bool inference()
+static bool inference(int const slot_index)
 {
     // TODO: Improve to avoid sending reverse prompt twice by always waiting for
     //       the count of tokens the reverse prompt has before calling the
     //       callback (with the exception if EOG)!
 
-    assert(s != nullptr);
+    assert(slot_index == 0 || slot_index == 1);
+    assert(s_slots[slot_index] != nullptr);
 
     llama_batch batch;
     int n_cur = 0,
@@ -278,8 +313,10 @@ static bool inference()
     // characters necessary for the reverse prompt (w/o \0), then.
     char* last_chars = nullptr;
 
-    int const rev_prompt_len = static_cast<int>(strlen(s->mt_p->rev_prompt));
-    llama_vocab const * const vocab = llama_model_get_vocab(s->model);
+    int const rev_prompt_len = static_cast<int>(
+            strlen(s_slots[slot_index]->mt_p->rev_prompt));
+    llama_vocab const * const vocab =
+        llama_model_get_vocab(s_slots[slot_index]->model);
 
     std::vector<float> dig_probs;
 
@@ -295,7 +332,7 @@ static bool inference()
     if(rev_prompt_len == 0) // Use magic (or empty) str. & EOT (or EOS), only.
     {
         irq_tokens = mt_llm_ctx_tokenize(
-            *s->ctx,
+            *s_slots[slot_index]->ctx,
             "", // E.g. "..." can cause an LLM to also use "..." just "for fun"!
             false); // No adding of BOS and/or EOS [is both model-dependent].
 
@@ -316,8 +353,8 @@ static bool inference()
         assert(!last_chars_filled);
 
         irq_tokens = mt_llm_ctx_tokenize(
-            *s->ctx,
-            s->mt_p->rev_prompt,
+            *s_slots[slot_index]->ctx,
+            s_slots[slot_index]->mt_p->rev_prompt,
             false); // No adding of BOS and/or EOS [is both model-dependent].
 
         last_chars = static_cast<char*>(
@@ -333,10 +370,11 @@ static bool inference()
     //
     // Existing token count: 30 <=> Indices  0...29 => First new token index: 30
     //
-    int const first_new_tok_index = s->tok_cnt;
-    int const n_ctx = static_cast<int>(llama_n_ctx(s->ctx));
+    int const first_new_tok_index = s_slots[slot_index]->tok_cnt;
+    int const n_ctx = static_cast<int>(llama_n_ctx(s_slots[slot_index]->ctx));
 
-    bool const is_thinker = s->mt_p->think_beg_delim[0] != '\0';
+    bool const is_thinker =
+        s_slots[slot_index]->mt_p->think_beg_delim[0] != '\0';
 
     for(n_cur = first_new_tok_index; n_cur < n_ctx; ++n_cur)
     {
@@ -360,7 +398,8 @@ static bool inference()
                     0 <= cur_last_chars_index
                         && cur_last_chars_index < rev_prompt_len);
 
-                if(s->mt_p->rev_prompt[i] != last_chars[cur_last_chars_index])
+                if(s_slots[slot_index]->mt_p->rev_prompt[i]
+                    != last_chars[cur_last_chars_index])
                 {
                     rev_prompt_found = false;
                     break;
@@ -369,7 +408,7 @@ static bool inference()
 
             if(rev_prompt_found)
             {
-                s->last_tok_type = MT_TOK_TYPE_REV_PROMPT;
+                s_slots[slot_index]->last_tok_type = MT_TOK_TYPE_REV_PROMPT;
 
                 // "Hack":
                 //
@@ -379,10 +418,10 @@ static bool inference()
                 //
                 // The client code must be aware of this and take action!
                 //
-                s->mt_p->callback(
+                s_slots[slot_index]->mt_p->callback(
                     0,
-                    s->mt_p->rev_prompt, // TODO: What about a possible leading space (would be "missing" here)? Problem??
-                    s->last_tok_type,
+                    s_slots[slot_index]->mt_p->rev_prompt, // TODO: What about a possible leading space (would be "missing" here)? Problem??
+                    s_slots[slot_index]->last_tok_type,
                     nullptr);
                 break;
             }
@@ -390,11 +429,12 @@ static bool inference()
 
         if(irq)
         {
-            s->last_tok_type = MT_TOK_TYPE_IRQ;
+            s_slots[slot_index]->last_tok_type = MT_TOK_TYPE_IRQ;
 
+            s_active_slot_index = slot_index;
             if(!mt_llm_ctx_decode(
-                    *s->ctx,
-                    *s->sampler,
+                    *s_slots[slot_index]->ctx,
+                    *s_slots[slot_index]->sampler,
                     n_cur,
                     irq_tokens,
                     callback_handler))
@@ -410,18 +450,18 @@ static bool inference()
         }
 
         llama_token const new_tok_id = llama_sampler_sample(
-            s->sampler, s->ctx, -1);
+            s_slots[slot_index]->sampler, s_slots[slot_index]->ctx, -1);
 
         bool const new_tok_is_eog = llama_vocab_is_eog(vocab, new_tok_id);
 
         std::string const piece = mt_llm_ctx_get_piece_from(
-            *s->ctx, new_tok_id);
+            *s_slots[slot_index]->ctx, new_tok_id);
 
         if(is_thinker && !is_thinking)
         {
             if(strncmp(
                 piece.c_str(),
-                s->mt_p->think_beg_delim,
+                s_slots[slot_index]->mt_p->think_beg_delim,
                 MT_LLM_P_LEN_THINK_BEG_DELIM) == 0)
             {
                 is_thinking = true; // BEFORE calling callback.
@@ -432,13 +472,14 @@ static bool inference()
 
         if(new_tok_is_eog)
         {
-            s->last_tok_type = MT_TOK_TYPE_SAMPLED_EOG; // (causes stop, below)
+            s_slots[slot_index]->last_tok_type = MT_TOK_TYPE_SAMPLED_EOG; // (causes stop, below)
         }
         else
         {
             if(llama_vocab_is_control(vocab, new_tok_id))
             {
-                s->last_tok_type = MT_TOK_TYPE_SAMPLED_CONTROL_NON_EOG;
+                s_slots[slot_index]->last_tok_type =
+                    MT_TOK_TYPE_SAMPLED_CONTROL_NON_EOG;
             }
             else
             {
@@ -449,11 +490,13 @@ static bool inference()
 
                 if(is_thinking)
                 {
-                    s->last_tok_type = MT_TOK_TYPE_SAMPLED_THINK;
+                    s_slots[slot_index]->last_tok_type =
+                        MT_TOK_TYPE_SAMPLED_THINK;
                 }
                 else
                 {
-                    s->last_tok_type = MT_TOK_TYPE_SAMPLED_NON_EOG_NON_CONTROL;
+                    s_slots[slot_index]->last_tok_type =
+                        MT_TOK_TYPE_SAMPLED_NON_EOG_NON_CONTROL;
 
                     // Calculate probabilities of all digits for first sampled
                     // non-EOG, non-control, non-whitespace, non-thinking,
@@ -470,10 +513,13 @@ static bool inference()
                         // TODO: Do just once during initialization:
                         //
                         std::vector<std::vector<int>> const dig_toks =
-                            mt_llm_model_get_digit_tokens(*s->model);
+                            mt_llm_model_get_digit_tokens(
+                                *s_slots[slot_index]->model);
 
-                        std::vector<float> const logits = get_last_logits(max);
-                        std::vector<float> const probs = get_probabilities(logits, max);
+                        std::vector<float> const logits = get_last_logits(
+                            max, slot_index);
+                        std::vector<float> const probs =
+                            get_probabilities(logits, max);
                         
                         dig_probs = get_token_group_probabilities(
                             dig_toks, probs);
@@ -494,13 +540,14 @@ static bool inference()
             }
         }
 
+        s_active_slot_index = slot_index;
     	irq = callback_handler(new_tok_id, piece, dig_probs);
 
         if(is_thinker && is_thinking)
         {
             if(strncmp(
                 piece.c_str(),
-                s->mt_p->think_end_delim,
+                s_slots[slot_index]->mt_p->think_end_delim,
                 MT_LLM_P_LEN_THINK_END_DELIM) == 0)
             {
                 is_thinking = false; // AFTER calling callback.
@@ -514,7 +561,8 @@ static bool inference()
         common_batch_clear(batch);
         common_batch_add(batch, new_tok_id, n_cur, { 0 }, true);
 
-        int32_t const llama_decode_res = llama_decode(s->ctx, batch);
+        int32_t const llama_decode_res = llama_decode(
+            s_slots[slot_index]->ctx, batch);
 
         if (llama_decode_res != 0)
         {
@@ -527,7 +575,7 @@ static bool inference()
             return false;
         }
 
-        llama_sampler_accept(s->sampler, new_tok_id);
+        llama_sampler_accept(s_slots[slot_index]->sampler, new_tok_id);
 
         // Break, if some kind of EOG token was generated:
         //
@@ -575,7 +623,7 @@ static bool inference()
     }
 
     int64_t const t_main_end = ggml_time_us();
-    int const n_decode = n_cur - s->tok_cnt;
+    int const n_decode = n_cur - s_slots[slot_index]->tok_cnt;
     MT_LOG(
         "Decoded %d tokens in %.2fs, speed: %.2f t/s.\n",
         n_decode,
@@ -583,7 +631,7 @@ static bool inference()
         static_cast<float>(n_decode)
             / (static_cast<float>(t_main_end - t_main_start) / 1000000.0f));
 
-    s->tok_cnt = n_cur;
+    s_slots[slot_index]->tok_cnt = n_cur;
     return true;
 }
 
@@ -591,9 +639,12 @@ static bool inference()
  * - To be called by mt_llm_init().
  * - Caller takes ownership.
  */
-static llama_sampler* create_sampler(llama_vocab const * const vocab)
+static llama_sampler* create_sampler(
+    llama_vocab const * const vocab, int const slot_index)
 {
-    assert(s != nullptr && s->mt_p != nullptr);
+    assert(slot_index == 0 || slot_index == 1);
+    assert(
+        s_slots[slot_index] != nullptr && s_slots[slot_index]->mt_p != nullptr);
 
     static size_t const min_keep = 0; // TODO: Is this the best option?
     static char const * const grammar_root = "root"; // TODO: Is this correct?
@@ -604,14 +655,14 @@ static llama_sampler* create_sampler(llama_vocab const * const vocab)
 
     llama_sampler * const ret_val = llama_sampler_chain_init(p);
 
-    if(s->mt_p->grammar[0] != '\0') // <- Does not seem to be necessary.
+    if(s_slots[slot_index]->mt_p->grammar[0] != '\0') // <- Does not seem to be necessary.
     {
         // TODO: Test, if this actually works this way!
 
         llama_sampler_chain_add(
             ret_val,
             llama_sampler_init_grammar(
-                vocab, s->mt_p->grammar, grammar_root));
+                vocab, s_slots[slot_index]->mt_p->grammar, grammar_root));
     }
 
     // Not used here: llama_sampler_init_logit_bias()
@@ -621,31 +672,40 @@ static llama_sampler* create_sampler(llama_vocab const * const vocab)
     // Not used here: llama_sampler_init_dry()
 
     llama_sampler_chain_add(
-        ret_val, llama_sampler_init_top_k(s->mt_p->top_k));
+        ret_val, llama_sampler_init_top_k(s_slots[slot_index]->mt_p->top_k));
 
     // Not used here: llama_sampler_init_typical()
 
     llama_sampler_chain_add(
-        ret_val, llama_sampler_init_top_p(s->mt_p->top_p, min_keep));
+        ret_val,
+        llama_sampler_init_top_p(s_slots[slot_index]->mt_p->top_p, min_keep));
 
     llama_sampler_chain_add(
-        ret_val, llama_sampler_init_min_p(s->mt_p->min_p, min_keep));
+        ret_val,
+        llama_sampler_init_min_p(s_slots[slot_index]->mt_p->min_p, min_keep));
 
     // Not used here: llama_sampler_init_xtc()
 
     llama_sampler_chain_add( // TODO: Better use llama_sampler_init_temp_ext()?
-        ret_val, llama_sampler_init_temp(s->mt_p->temp));
+        ret_val, llama_sampler_init_temp(s_slots[slot_index]->mt_p->temp));
 
     assert(LLAMA_DEFAULT_SEED == static_cast<uint32_t>(-1));
-    llama_sampler_chain_add(ret_val, llama_sampler_init_dist(s->mt_p->seed));
+    llama_sampler_chain_add(
+        ret_val, llama_sampler_init_dist(s_slots[slot_index]->mt_p->seed));
 
     return ret_val;
 }
 
 MT_EXPORT_LLM_API int mt_llm_get_token_count(
-    char const * const text, bool const add_special)
+    char const * const text, bool const add_special, int const slot_index)
 {
-    if(s == nullptr)
+    if(slot_index != 0 && slot_index != 1)
+    {
+        MT_LOG_ERR("Invalid slot index given!\n");
+        return -3;
+    }
+
+    if(s_slots[slot_index] == nullptr)
     {
         MT_LOG_ERR("Not intialized!\n");
         return -1;
@@ -657,24 +717,31 @@ MT_EXPORT_LLM_API int mt_llm_get_token_count(
     }
 
     std::vector<int> const tokens = mt_llm_ctx_tokenize(
-        *s->ctx, text, add_special);
+        *s_slots[slot_index]->ctx, text, add_special);
 
     return static_cast<int>(tokens.size());
 }
 
-MT_EXPORT_LLM_API struct mt_llm_state * __stdcall mt_llm_state_create()
+MT_EXPORT_LLM_API struct mt_llm_state * __stdcall mt_llm_state_create(
+    int const slot_index)
 {
     struct mt_llm_state * state = nullptr;
 
-    if(s == nullptr)
+    if(slot_index != 0 && slot_index != 1)
+    {
+        MT_LOG_ERR("Invalid slot index given!\n");
+        return nullptr;
+    }
+
+    if(s_slots[slot_index] == nullptr)
     {
         MT_LOG_ERR("Not intialized!\n");
         return nullptr;
     }
 
-    assert(s->ctx != nullptr);
+    assert(s_slots[slot_index]->ctx != nullptr);
 
-    size_t const state_size = llama_state_get_size(s->ctx);
+    size_t const state_size = llama_state_get_size(s_slots[slot_index]->ctx);
 
     MT_LOG("Serialized state size would be: %zu bytes\n", state_size);
 
@@ -695,7 +762,7 @@ MT_EXPORT_LLM_API struct mt_llm_state * __stdcall mt_llm_state_create()
     }
 
     size_t const written = llama_state_get_data(
-        s->ctx, state->state, state_size);
+        s_slots[slot_index]->ctx, state->state, state_size);
 
     if(written != state_size)
     {
@@ -709,89 +776,111 @@ MT_EXPORT_LLM_API struct mt_llm_state * __stdcall mt_llm_state_create()
 
     MT_LOG("Successfully copied %zu state bytes to memory.\n", state_size);
     state->size = state_size;
-    state->last_tok_type = s->last_tok_type;
-    state->tok_cnt = s->tok_cnt;
+    state->last_tok_type = s_slots[slot_index]->last_tok_type;
+    state->tok_cnt = s_slots[slot_index]->tok_cnt;
     return state; // Caller takes ownership!
 }
 
 MT_EXPORT_LLM_API bool __stdcall mt_llm_state_restore(
-    struct mt_llm_state const * const state)
+    struct mt_llm_state const * const state, int const slot_index)
 {
     assert(state != nullptr);
     assert(state->state != nullptr);
     assert(0 < state->size);
 
-    if(s == nullptr)
+    if(slot_index != 0 && slot_index != 1)
+    {
+        MT_LOG_ERR("Invalid slot index given!\n");
+        return false;
+    }
+
+    if(s_slots[slot_index] == nullptr)
     {
         MT_LOG_ERR("Not intialized!\n");
         return false;
     }
 
-    assert(s->ctx != nullptr);
+    assert(s_slots[slot_index]->ctx != nullptr);
     
-    size_t const read = llama_state_set_data(s->ctx, state->state, state->size);
+    size_t const read = llama_state_set_data(
+        s_slots[slot_index]->ctx, state->state, state->size);
 
     if(read != state->size)
     {
         MT_LOG_ERR("Filed to read exactly %zu bytes!\n", state->size);
         return false;
     }
-    s->last_tok_type = state->last_tok_type;
-    s->tok_cnt = state->tok_cnt;
+    s_slots[slot_index]->last_tok_type = state->last_tok_type;
+    s_slots[slot_index]->tok_cnt = state->tok_cnt;
     return true;
 }
 
-MT_EXPORT_LLM_API bool __stdcall mt_llm_query(char const * const prompt)
+MT_EXPORT_LLM_API bool __stdcall mt_llm_query(
+    char const * const prompt, int const slot_index)
 {
-    if(s == nullptr)
+    if(slot_index != 0 && slot_index != 1)
+    {
+        MT_LOG("Error: Unsupported slot index given, doing nothing.");
+        return false;
+    }
+
+    if(s_slots[slot_index] == nullptr)
     {
         MT_LOG_ERR("Not intialized!\n");
         return false;
     }
 
-    assert(s->mt_p != nullptr);
-    assert(s->model != nullptr);
-    assert(s->ctx != nullptr);
-    assert(s->sampler != nullptr);
+    assert(s_slots[slot_index]->mt_p != nullptr);
+    assert(s_slots[slot_index]->model != nullptr);
+    assert(s_slots[slot_index]->ctx != nullptr);
+    assert(s_slots[slot_index]->sampler != nullptr);
     
-    if(s->tok_cnt == 0 && s->mt_p->sys_prompt[0] != '\0')
+    if(s_slots[slot_index]->tok_cnt == 0
+        && s_slots[slot_index]->mt_p->sys_prompt[0] != '\0')
     {
-        if(!decode_initial_query(prompt))
+        if(!decode_initial_query(prompt, slot_index))
         {
             return false; // (called function logs on error)
         }
     }
     else
     {
-        if(!decode_follow_up_query(prompt))
+        if(!decode_follow_up_query(prompt, slot_index))
         {
             return false; // (called function logs on error)
         }
     }
 
-    if(!inference())
+    if(!inference(slot_index))
     {
         return false; // (called function logs on error)
     }
 
-    MT_LOG("Token count: %d.\n", s->tok_cnt);
+    MT_LOG("Token count: %d.\n", s_slots[slot_index]->tok_cnt);
     return true;
 }
 
-MT_EXPORT_LLM_API void __stdcall mt_llm_reset(char const * const sys_prompt)
+MT_EXPORT_LLM_API void __stdcall mt_llm_reset(
+    char const * const sys_prompt, int const slot_index)
 {
-    if(s == nullptr)
+    if(slot_index != 0 && slot_index != 1)
+    {
+        MT_LOG("Warning: Unsupported slot index given, doing nothing.");
+        return; // Just do nothing.
+    }
+
+    if(s_slots[slot_index] == nullptr)
     {
         return; // Cannot do anything.
     }
 
-    assert(s->mt_p != nullptr);
-    assert(s->model != nullptr);
-    assert(s->ctx != nullptr);
-    assert(s->sampler != nullptr);
+    assert(s_slots[slot_index]->mt_p != nullptr);
+    assert(s_slots[slot_index]->model != nullptr);
+    assert(s_slots[slot_index]->ctx != nullptr);
+    assert(s_slots[slot_index]->sampler != nullptr);
 
     {
-        llama_memory_t kv = llama_get_memory(s->ctx);
+        llama_memory_t kv = llama_get_memory(s_slots[slot_index]->ctx);
 
         if(kv != nullptr)
         {
@@ -800,91 +889,111 @@ MT_EXPORT_LLM_API void __stdcall mt_llm_reset(char const * const sys_prompt)
         }
     }
 
-    llama_sampler_reset(s->sampler);
+    llama_sampler_reset(s_slots[slot_index]->sampler);
 
-    s->last_tok_type = 0;
-    s->tok_cnt = 0;
+    s_slots[slot_index]->last_tok_type = 0;
+    s_slots[slot_index]->tok_cnt = 0;
 
     if(sys_prompt != NULL)
     {
         strncpy(
-            s->mt_p->sys_prompt,
+            s_slots[slot_index]->mt_p->sys_prompt,
             sys_prompt,
             MT_LLM_P_LEN_SYS_PROMPT);
 
-        MT_LOG("sys_prompt" ": " "\"%s\"" "\n", s->mt_p->sys_prompt);
+        MT_LOG(
+            "sys_prompt" ": " "\"%s\"" "\n",
+            s_slots[slot_index]->mt_p->sys_prompt);
     }
 }
 
-MT_EXPORT_LLM_API void __stdcall mt_llm_deinit()
+MT_EXPORT_LLM_API void __stdcall mt_llm_deinit(int const slot_index)
 {
-    if(s == nullptr)
+    if(slot_index != 0 && slot_index != 1)
+    {
+        MT_LOG("Warning: Unsupported slot index given, doing nothing.");
+        return; // Just do nothing.
+    }
+
+    if(s_slots[slot_index] == nullptr)
     {
         return; // Just do nothing.
     }
 
-    if(s->mt_p != nullptr)
+    if(s_slots[slot_index]->mt_p != nullptr)
     {
-        mt_llm_p_free(s->mt_p);
-        s->mt_p = nullptr;
+        mt_llm_p_free(s_slots[slot_index]->mt_p);
+        s_slots[slot_index]->mt_p = nullptr;
     }
-    if(s->ctx != nullptr)
+    if(s_slots[slot_index]->ctx != nullptr)
     {
-        llama_free(s->ctx);
-        s->ctx = nullptr;
+        llama_free(s_slots[slot_index]->ctx);
+        s_slots[slot_index]->ctx = nullptr;
     }
-    if(s->sampler != nullptr)
+    if(s_slots[slot_index]->sampler != nullptr)
     {
-        llama_sampler_free(s->sampler);
-        s->sampler = nullptr;
+        llama_sampler_free(s_slots[slot_index]->sampler);
+        s_slots[slot_index]->sampler = nullptr;
     }
-    if(s->model != nullptr)
+    if(s_slots[slot_index]->model != nullptr)
     {
-        llama_model_free(s->model);
-        s->model = nullptr;
+        llama_model_free(s_slots[slot_index]->model);
+        s_slots[slot_index]->model = nullptr;
     }
-    llama_backend_free(); // Assuming(!) that this is OK, if not initialized..
 
-    free(s);
-    s = nullptr;
+    if(s_slots[0] == nullptr && s_slots[1] == nullptr)
+    {
+        // Assuming(!) that this is OK, if not initialized..
+        llama_backend_free();
+    }
+
+    free(s_slots[slot_index]);
+    s_slots[slot_index] = nullptr;
 }
 
 MT_EXPORT_LLM_API bool __stdcall mt_llm_reinit(
-    struct mt_llm_p const * const mt_p)
+    struct mt_llm_p const * const mt_p, int const slot_index)
 {
-    common_init();
+    if(slot_index != 0 && slot_index != 1)
+    {
+        MT_LOG_ERR("Unsupported slot index given!\n");
+        return false;
+    }
+
+    common_init(); // TODO: Problem, if called multiple times?
 
     //common_log_pause(common_log_main());
     //
     //static void llama_log_callback_null(ggml_log_level level, const char * text, void * user_data) { (void) level; (void) text; (void) user_data; }
     //llama_log_set(llama_log_callback_null, NULL);
 
-    if(s != nullptr)
+    if(s_slots != nullptr)
     {
-        mt_llm_deinit();
+        mt_llm_deinit(slot_index);
     }
-    assert(s == nullptr);
+    assert(s_slots[slot_index] == nullptr);
 
     if(mt_p->callback == nullptr)
     {
         MT_LOG_ERR("Callback is not set!\n");
-        //mt_llm_deinit();
+        //mt_llm_deinit(slot_index);
         return false;
     }
 
-    s = static_cast<struct mt_llm_s *>(malloc(sizeof *s));
-    if(s == nullptr)
+    s_slots[slot_index] = static_cast<struct mt_llm_s *>(
+        malloc(sizeof *s_slots[slot_index]));
+    if(s_slots[slot_index] == nullptr)
     {
         MT_LOG_ERR("Failed to allocate memory for settings!");
-        //mt_llm_deinit();
+        //mt_llm_deinit(slot_index);
         return false;
     }
 
-    s->mt_p = mt_llm_p_create_copy(*mt_p);
-    if(s->mt_p == nullptr)
+    s_slots[slot_index]->mt_p = mt_llm_p_create_copy(*mt_p);
+    if(s_slots[slot_index]->mt_p == nullptr)
     {
         MT_LOG_ERR("Failed to deep-copy parameters!\n");
-        mt_llm_deinit();
+        mt_llm_deinit(slot_index);
         return false;
     }
     //
@@ -892,14 +1001,15 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_reinit(
 
     // If not given, automatically set the thread count:
     //
-    if(s->mt_p->threads == 0)
+    if(s_slots[slot_index]->mt_p->threads == 0)
     {
-        s->mt_p->threads = (uint32_t)cpu_get_num_physical_cores();
-        assert(0 < s->mt_p->threads);
+        s_slots[slot_index]->mt_p->threads =
+            (uint32_t)cpu_get_num_physical_cores();
+        assert(0 < s_slots[slot_index]->mt_p->threads);
     }
 
-    // Do not change s->mt_p properties from here on, with the exception of
-    // prompts (see below)!
+    // Do not change s_slots[slot_index]->mt_p properties from here on, with
+    // the exception of prompts (see below)!
 
     // Initialize the LLM:
     //
@@ -908,39 +1018,42 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_reinit(
 
     // Initialize the model:
     //
-    s->model = mt_llm_model_create(*s->mt_p);
-    if (s->model == nullptr)
+    s_slots[slot_index]->model = mt_llm_model_create(
+        *s_slots[slot_index]->mt_p);
+    if (s_slots[slot_index]->model == nullptr)
     {
         MT_LOG_ERR("Unable to load model!\n");
-        mt_llm_deinit();
+        mt_llm_deinit(slot_index);
         return false;
     }
 
     // Initialize the sampling:
     //
-    s->sampler = create_sampler(llama_model_get_vocab(s->model));
-    if(s->sampler == nullptr)
+    s_slots[slot_index]->sampler = create_sampler(
+        llama_model_get_vocab(s_slots[slot_index]->model), slot_index);
+    if(s_slots[slot_index]->sampler == nullptr)
     {
         MT_LOG_ERR("Unable to create sampler!\n");
-        mt_llm_deinit();
+        mt_llm_deinit(slot_index);
         return false;
     }
 
     // Support for models with an encoder should be easy to add, but is
     // currently not implemented:
     //
-    if(llama_model_has_encoder(s->model))
+    if(llama_model_has_encoder(s_slots[slot_index]->model))
     {
         MT_LOG_ERR("Model has an encoder, that is currently not supported!\n");
-        mt_llm_deinit();
+        mt_llm_deinit(slot_index);
         return false;
     }
 
     // Modify prompt strings by model (name), if wanted:
     //
-    if(s->mt_p->try_prompts_by_model != 0)
+    if(s_slots[slot_index]->mt_p->try_prompts_by_model != 0)
     {
-        mt_llm_model_try_set_prompts(*s->model, *s->mt_p);
+        mt_llm_model_try_set_prompts(
+            *s_slots[slot_index]->model, *s_slots[slot_index]->mt_p);
         //
         // Return value ignored, as called function logs (and this is no error).
     }
@@ -949,44 +1062,48 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_reinit(
         MT_LOG("Trying to use default prompts for model is not wanted.\n");
     }
     
-    // Do not change any s->mt_p properties from here on!
+    // Do not change any s_slots[slot_index]->mt_p properties from here on!
     //
-    mt_llm_p_print(*s->mt_p);
+    mt_llm_p_print(*s_slots[slot_index]->mt_p);
 
     // Initialize the context:
 
-    s->ctx = mt_llm_ctx_create(*s->mt_p, *s->model);
-    if (s->ctx == nullptr)
+    s_slots[slot_index]->ctx = mt_llm_ctx_create(
+        *s_slots[slot_index]->mt_p, *s_slots[slot_index]->model);
+    if (s_slots[slot_index]->ctx == nullptr)
     {
         MT_LOG_ERR("Creating context!\n");
-        mt_llm_deinit();
+        mt_llm_deinit(slot_index);
         return false;
     }
 
     {
-        int32_t const n_ctx_train = llama_model_n_ctx_train(s->model),
-            n_ctx_ctx = static_cast<int32_t>(llama_n_ctx(s->ctx)); // Bold cast?
+        int32_t const n_ctx_train = llama_model_n_ctx_train(
+                    s_slots[slot_index]->model),
+            n_ctx_ctx = static_cast<int32_t>(
+                llama_n_ctx(s_slots[slot_index]->ctx)); // Bold cast?
 
         // Interpreted as error here, by definition:
         //
         assert(
-            s->mt_p->n_ctx == 0
-                || static_cast<int32_t>(s->mt_p->n_ctx) == n_ctx_ctx);
+            s_slots[slot_index]->mt_p->n_ctx == 0
+                || static_cast<int32_t>(s_slots[slot_index]->mt_p->n_ctx)
+                    == n_ctx_ctx);
         if(n_ctx_train < n_ctx_ctx)
         {
             MT_LOG_ERR(
                 "Model was trained on %d tokens (wanted %d tokens)!\n",
                 n_ctx_train,
                 n_ctx_ctx);
-            mt_llm_deinit();
+            mt_llm_deinit(slot_index);
             return false;
         }
     }
 
     MT_LOG("System info: %s\n", llama_print_system_info());
 
-    s->last_tok_type = 0;
-    s->tok_cnt = 0;
+    s_slots[slot_index]->last_tok_type = 0;
+    s_slots[slot_index]->tok_cnt = 0;
 
     return true;
 }
