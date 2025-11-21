@@ -778,7 +778,7 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_query(char const * const prompt)
     return true;
 }
 
-MT_EXPORT_LLM_API void __stdcall mt_llm_reset()
+MT_EXPORT_LLM_API void __stdcall mt_llm_reset(char const * const sys_prompt)
 {
     if(s == nullptr)
     {
@@ -804,6 +804,16 @@ MT_EXPORT_LLM_API void __stdcall mt_llm_reset()
 
     s->last_tok_type = 0;
     s->tok_cnt = 0;
+
+    if(sys_prompt != NULL)
+    {
+        strncpy(
+            s->mt_p->sys_prompt,
+            sys_prompt,
+            MT_LLM_P_LEN_SYS_PROMPT);
+
+        MT_LOG("sys_prompt" ": " "\"%s\"" "\n", s->mt_p->sys_prompt);
+    }
 }
 
 MT_EXPORT_LLM_API void __stdcall mt_llm_deinit()
@@ -844,7 +854,7 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_reinit(
 {
     common_init();
 
-    common_log_pause(common_log_main());
+    //common_log_pause(common_log_main());
     //
     //static void llama_log_callback_null(ggml_log_level level, const char * text, void * user_data) { (void) level; (void) text; (void) user_data; }
     //llama_log_set(llama_log_callback_null, NULL);

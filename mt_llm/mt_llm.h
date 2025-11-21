@@ -50,11 +50,12 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_state_restore(
  */
 MT_EXPORT_LLM_API bool __stdcall mt_llm_query(char const * const prompt);
 
-/** Reset state, as if the model just got loaded.
+/** Reset state, as if the model just got loaded. Optionally update system
+ *  prompt.
  *
  * - Does nothing, if singleton is not initialized.
  */
-MT_EXPORT_LLM_API void __stdcall mt_llm_reset();
+MT_EXPORT_LLM_API void __stdcall mt_llm_reset(char const * const sys_prompt);
 
 /**
  * - Does no harm, if not initialized.
