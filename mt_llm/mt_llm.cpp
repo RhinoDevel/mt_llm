@@ -839,7 +839,9 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_state_restore(
 }
 
 MT_EXPORT_LLM_API bool __stdcall mt_llm_query(
-    char const * const prompt, int const slot_index)
+    char const * const prompt,
+    int const slot_index,
+    bool skip_sys_prompt_end_delim_and_inference)
 {
     if(slot_index != 0 && slot_index != 1)
     {
@@ -868,15 +870,21 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_query(
     }
     else
     {
+        // Although it would be no problem, so maybe remove assertion?
+        assert(!skip_sys_prompt_end_delim_and_inference);
+
         if(!decode_follow_up_query(prompt, slot_index))
         {
             return false; // (called function logs on error)
         }
     }
 
-    if(!inference(slot_index))
+    if(!skip_sys_prompt_end_delim_and_inference)
     {
-        return false; // (called function logs on error)
+        if(!inference(slot_index))
+        {
+            return false; // (called function logs on error)
+        }
     }
 
     MT_LOG("Token count: %d.\n", s_slots[slot_index]->tok_cnt);

@@ -57,7 +57,9 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_state_restore(
  * - Returns false and does nothing, if not initialized or invalid slot index.
  */
 MT_EXPORT_LLM_API bool __stdcall mt_llm_query(
-    char const * const prompt, int const slot_index);
+    char const * const prompt,
+    int const slot_index,
+    bool skip_sys_prompt_end_delim_and_inference);
 
 /** Reset state, as if the model just got loaded. Optionally update system
  *  prompt.
