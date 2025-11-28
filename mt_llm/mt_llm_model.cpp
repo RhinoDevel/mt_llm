@@ -446,16 +446,16 @@ static char const * const s_model_names_granite4[] = {
 };
 // https://huggingface.co/CohereLabs/aya-expanse-8b/blob/main/tokenizer_config.json
 static const struct prompt_template s_granite4 = // <- Add this to "the" array.
-MT_LLM_MODEL_CREATE(
-    s_model_names_granite4,
-    "<|start_of_role|>",
-    "system" "<|end_of_role|>",
-    "user" "<|end_of_role|>",
-    "assistant" "<|end_of_role|>",
-    "<|end_of_text|>" "\n",
-    "",
-    "",
-    "");
+    MT_LLM_MODEL_CREATE(
+        s_model_names_granite4,
+        "<|start_of_role|>",
+        "system" "<|end_of_role|>",
+        "user" "<|end_of_role|>",
+        "assistant" "<|end_of_role|>",
+        "<|end_of_text|>" "\n",
+        "",
+        "",
+        "");
 
 // *****************************************************************************
 
