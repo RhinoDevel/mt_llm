@@ -218,7 +218,9 @@ static bool decode_sys_prompt_end_delim(int const slot_index)
  *   prompt to be decoded, here (no check..).
  */
 static bool decode_initial_query(
-    char const * const prompt, int const slot_index)
+    char const * const prompt,
+    int const slot_index,
+    bool const skip_sys_prompt_end_delim)
 {
     assert(slot_index == 0 || slot_index == 1);
     assert(s_slots[slot_index]->mt_p->sys_prompt[0] != '\0');
@@ -256,10 +258,15 @@ static bool decode_initial_query(
         MT_LOG_ERR("Decoding prompt!");
         return false;
     }
-    if(!decode_sys_prompt_end_delim(slot_index))
+
+    if(!skip_sys_prompt_end_delim)
     {
-        return false; // Called function logged.
+        if(!decode_sys_prompt_end_delim(slot_index))
+        {
+            return false; // Called function logged.
+        }
     }
+
     return true;
 }
 
@@ -854,7 +861,7 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_query(
     if(s_slots[slot_index]->tok_cnt == 0
         && s_slots[slot_index]->mt_p->sys_prompt[0] != '\0')
     {
-        if(!decode_initial_query(prompt, slot_index))
+        if(!decode_initial_query(prompt, slot_index, false))
         {
             return false; // (called function logs on error)
         }
