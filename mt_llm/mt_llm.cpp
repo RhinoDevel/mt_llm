@@ -903,7 +903,8 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_query(
         // Although it would be no problem, just not intended this way.
         assert(!follow_up_decode_prompt_and_sys_prompt_end_delim);
 
-        if(!decode_initial_query(prompt, slot_index, false))
+        if(!decode_initial_query(
+                prompt, slot_index, skip_sys_prompt_end_delim_and_inference))
         {
             return false; // (called function logs on error)
         }
