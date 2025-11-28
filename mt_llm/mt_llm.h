@@ -59,7 +59,8 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_state_restore(
 MT_EXPORT_LLM_API bool __stdcall mt_llm_query(
     char const * const prompt,
     int const slot_index,
-    bool const skip_sys_prompt_end_delim_and_inference);
+    bool const skip_sys_prompt_end_delim_and_inference,
+    bool const follow_up_decode_prompt_and_sys_prompt_end_delim);
 
 /** Reset state, as if the model just got loaded. Optionally update system
  *  prompt.

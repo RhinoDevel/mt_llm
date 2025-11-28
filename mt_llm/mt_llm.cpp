@@ -263,10 +263,46 @@ static bool decode_initial_query(
     {
         if(!decode_sys_prompt_end_delim(slot_index))
         {
-            return false; // Called function logged.
+            return false; // (called function logs on error)
         }
     }
+    //
+    // Otherwise: E.g. useful to decode system prompt and first part of a prompt
+    //            one (e.g. a text to later query the LLM about). Then take a
+    //            snapshot of that state. After that, it is possible to test
+    //            multiple ends of that first prompt (would be the actual query
+    //            about the text, in the example) faster, by recovering from the
+    //            snapshot for each query-version instead of re-decoding the
+    //            whole date (text) the LLM shall be questioned about.
+    //
+    //            Also see decode_prompt_and_sys_prompt_end_delim() & its usage.
 
+    return true;
+}
+
+/**
+ * - Just assumes that the context length is always long enough to hold the
+ *   prompt to be decoded, here (no check..).
+ * 
+ * - Also see comment in decode_initial_query() about skip_sys_prompt_end_delim.
+ */
+static bool decode_prompt_and_sys_prompt_end_delim(
+    char const * const prompt,
+    int const slot_index)
+{
+    assert(slot_index == 0 || slot_index == 1);
+    assert(s_slots[slot_index]->mt_p->sys_prompt[0] != '\0');
+    assert(prompt != nullptr && prompt[0] != '\0');
+
+    if(!decode(prompt, MT_TOK_TYPE_PROMPT, slot_index))
+    {
+        MT_LOG_ERR("Decoding prompt!");
+        return false;
+    }
+    if(!decode_sys_prompt_end_delim(slot_index))
+    {
+        return false; // (called function logs on error)
+    }
     return true;
 }
 
@@ -841,7 +877,8 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_state_restore(
 MT_EXPORT_LLM_API bool __stdcall mt_llm_query(
     char const * const prompt,
     int const slot_index,
-    bool const skip_sys_prompt_end_delim_and_inference)
+    bool const skip_sys_prompt_end_delim_and_inference,
+    bool const follow_up_decode_prompt_and_sys_prompt_end_delim)
 {
     if(slot_index != 0 && slot_index != 1)
     {
@@ -863,6 +900,9 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_query(
     if(s_slots[slot_index]->tok_cnt == 0
         && s_slots[slot_index]->mt_p->sys_prompt[0] != '\0')
     {
+        // Although it would be no problem, just not intended this way.
+        assert(!follow_up_decode_prompt_and_sys_prompt_end_delim);
+
         if(!decode_initial_query(prompt, slot_index, false))
         {
             return false; // (called function logs on error)
@@ -870,12 +910,22 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_query(
     }
     else
     {
-        // Although it would be no problem, so maybe remove assertion?
+        // Although it would be no problem, just not intended this way.
         assert(!skip_sys_prompt_end_delim_and_inference);
 
-        if(!decode_follow_up_query(prompt, slot_index))
+        if(follow_up_decode_prompt_and_sys_prompt_end_delim)
         {
-            return false; // (called function logs on error)
+            if(!decode_prompt_and_sys_prompt_end_delim(prompt, slot_index))
+            {
+                return false; // (called function logs on error)
+            }
+        }
+        else
+        {
+            if(!decode_follow_up_query(prompt, slot_index))
+            {
+                return false; // (called function logs on error)
+            }
         }
     }
 
