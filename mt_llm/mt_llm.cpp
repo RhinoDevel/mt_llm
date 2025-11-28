@@ -197,6 +197,26 @@ static bool decode(
  * - Just assumes that the context length is always long enough to hold the
  *   prompt to be decoded, here (no check..).
  */
+static bool decode_sys_prompt_end_delim(int const slot_index)
+{
+    assert(slot_index == 0 || slot_index == 1);
+    assert(s_slots[slot_index]->mt_p->sys_prompt[0] != '\0');
+
+    if(!decode(
+        s_slots[slot_index]->mt_p->sys_prompt_end_delim,
+        MT_TOK_TYPE_DELIM,
+        slot_index))
+    {
+        MT_LOG_ERR("Decoding system prompt end delimiter!");
+        return false;
+    }
+    return true;
+}
+
+/**
+ * - Just assumes that the context length is always long enough to hold the
+ *   prompt to be decoded, here (no check..).
+ */
 static bool decode_initial_query(
     char const * const prompt, int const slot_index)
 {
@@ -236,13 +256,9 @@ static bool decode_initial_query(
         MT_LOG_ERR("Decoding prompt!");
         return false;
     }
-    if(!decode(
-            s_slots[slot_index]->mt_p->sys_prompt_end_delim,
-            MT_TOK_TYPE_DELIM,
-            slot_index))
+    if(!decode_sys_prompt_end_delim(slot_index))
     {
-        MT_LOG_ERR("Decoding system prompt end delimiter!");
-        return false;
+        return false; // Called function logged.
     }
     return true;
 }
@@ -1016,6 +1032,10 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_reinit(
     llama_backend_init();
     llama_numa_init(GGML_NUMA_STRATEGY_DISABLED); // Unnecessary this way.
 
+    // TODO: If the other slot is already initialized and all model-related
+    //       parameters are equal, we can(?) reuse the already initialized
+    //       model (not the context!), here!
+    // 
     // Initialize the model:
     //
     s_slots[slot_index]->model = mt_llm_model_create(
