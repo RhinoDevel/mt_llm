@@ -841,7 +841,7 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_state_restore(
 MT_EXPORT_LLM_API bool __stdcall mt_llm_query(
     char const * const prompt,
     int const slot_index,
-    bool skip_sys_prompt_end_delim_and_inference)
+    bool const skip_sys_prompt_end_delim_and_inference)
 {
     if(slot_index != 0 && slot_index != 1)
     {
