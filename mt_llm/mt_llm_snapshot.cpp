@@ -13,12 +13,12 @@
 // Hard-coded for a maximum of two LLMs, see mt_llm!
 static mt_llm_state * s_snapshots[] = { nullptr, nullptr };
 
-MT_EXPORT_LLM_API void __stdcall mt_llm_snapshot_clear(int const slot_index)
+static bool snapshot_clear(int const slot_index)
 {
 	if(slot_index != 0 && slot_index != 1)
 	{
 		MT_LOG_ERR("Invalid snapshot index given!\n");
-		return;
+		return false;
 	}
 
 	if(s_snapshots[slot_index] != nullptr)
@@ -28,6 +28,16 @@ MT_EXPORT_LLM_API void __stdcall mt_llm_snapshot_clear(int const slot_index)
 		free(s_snapshots[slot_index]);
 		s_snapshots[slot_index] = nullptr;
 	}
+	return true;
+}
+
+MT_EXPORT_LLM_API void __stdcall mt_llm_snapshot_clear(int const slot_index)
+{
+	if(!snapshot_clear(slot_index))
+	{
+		return;
+	}
+	MT_LOG("Cleared state at slot with index %d.\n", slot_index);
 }
 
 MT_EXPORT_LLM_API bool mt_llm_snapshot_restore(int const slot_index)

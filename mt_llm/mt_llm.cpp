@@ -833,10 +833,10 @@ MT_EXPORT_LLM_API struct mt_llm_state * __stdcall mt_llm_state_create(
         return nullptr;
     }
 
-    MT_LOG("Successfully copied %zu state bytes to memory.\n", state_size);
     state->size = state_size;
     state->last_tok_type = s_slots[slot_index]->last_tok_type;
     state->tok_cnt = s_slots[slot_index]->tok_cnt;
+    MT_LOG("Successfully created %zu state bytes from LLM memory (tok. count: %d, last tok. type: %d, slot index: %d).\n", state->size, state->tok_cnt, state->last_tok_type, slot_index);
     return state; // Caller takes ownership!
 }
 
@@ -869,8 +869,10 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_state_restore(
         MT_LOG_ERR("Filed to read exactly %zu bytes!\n", state->size);
         return false;
     }
+
     s_slots[slot_index]->last_tok_type = state->last_tok_type;
     s_slots[slot_index]->tok_cnt = state->tok_cnt;
+    MT_LOG("Successfully restored %zu bytes from state to LLM memory (tok. count: %d, last tok. type: %d, slot index: %d).\n", state->size, state->tok_cnt, state->last_tok_type, slot_index);
     return true;
 }
 
