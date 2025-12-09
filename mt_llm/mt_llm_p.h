@@ -41,6 +41,7 @@ struct mt_llm_p
     uint32_t n_ctx; // 0 = Use context size of model.
     uint32_t threads; // Number of threads to use for inference
                       // (0 = system-dependent).
+    uint8_t embeddings; // If not 0, extract embeddings (together with logits).
 
     // *****************************
     // *** llama_sampling_params ***

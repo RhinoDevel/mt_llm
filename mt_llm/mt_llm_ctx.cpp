@@ -27,6 +27,11 @@ static llama_context_params get_ctx_params(mt_llm_p const & mt_p)
     ret_val.n_ubatch = 1; // Physical max. batch size.
     ret_val.n_seq_max = 1; // Max. number of sequences.
 
+    if(mt_p.embeddings != 0)
+    {
+        ret_val.embeddings = true; // Etract embeddings (together with logits).
+    }
+
     return ret_val;
 }
 

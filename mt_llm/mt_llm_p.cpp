@@ -15,6 +15,7 @@ void mt_llm_p_print(struct mt_llm_p const & mt_p)
 
     MT_LOG("n_ctx" ": " "%u" "\n", mt_p.n_ctx);
     MT_LOG("threads" ": " "%u" "\n", mt_p.threads);
+    MT_LOG("embeddings" ": " "%u" "\n", mt_p.embeddings);
 
     MT_LOG("seed" ": "  "%u" "\n", mt_p.seed);
     MT_LOG("top_k" ": " "\"%d\"" "\n", mt_p.top_k);
@@ -72,6 +73,7 @@ struct mt_llm_p * mt_llm_p_create_copy(struct mt_llm_p const & mt_p)
 
     copy->n_ctx = mt_p.n_ctx;
     copy->threads = mt_p.threads;
+    copy->embeddings = mt_p.embeddings;
 
     copy->seed = mt_p.seed;
     copy->top_k = mt_p.top_k;
