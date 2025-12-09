@@ -27,6 +27,7 @@ static struct mt_llm_s * s_slots[] = { nullptr, nullptr };
 static int s_active_slot_index = 0; // For callback_handler().
 
 static bool s_is_common_init = false;
+static bool s_is_backend_init = false;
 
 static void init_common_if_necessary(void)
 {
@@ -38,6 +39,19 @@ static void init_common_if_necessary(void)
         //
         //static void llama_log_callback_null(ggml_log_level level, const char * text, void * user_data) { (void) level; (void) text; (void) user_data; }
         //llama_log_set(llama_log_callback_null, NULL);
+
+        s_is_common_init = true;
+    }
+}
+
+static void init_backend_if_necessary(void)
+{
+    if(!s_is_backend_init)
+    {
+        llama_backend_init();
+        llama_numa_init(GGML_NUMA_STRATEGY_DISABLED); // Unnecessary this way.
+
+        s_is_backend_init = true;
     }
 }
 
@@ -1040,10 +1054,12 @@ MT_EXPORT_LLM_API void __stdcall mt_llm_deinit(int const slot_index)
         s_slots[slot_index]->model = nullptr;
     }
 
-    if(s_slots[0] == nullptr && s_slots[1] == nullptr)
+    if(s_slots[0] == nullptr
+        && s_slots[1] == nullptr
+        && s_is_backend_init)
     {
-        // Assuming(!) that this is OK, if not initialized..
         llama_backend_free();
+        s_is_backend_init = false;
     }
 
     free(s_slots[slot_index]);
@@ -1105,10 +1121,9 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_reinit(
     // Do not change s_slots[slot_index]->mt_p properties from here on, with
     // the exception of prompts (see below)!
 
-    // Initialize the LLM:
+    // Initialize the inference engine:
     //
-    llama_backend_init();
-    llama_numa_init(GGML_NUMA_STRATEGY_DISABLED); // Unnecessary this way.
+    init_backend_if_necessary();
 
     // TODO: If the other slot is already initialized and all model-related
     //       parameters are equal, we can(?) reuse the already initialized
