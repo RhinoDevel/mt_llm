@@ -26,6 +26,21 @@
 static struct mt_llm_s * s_slots[] = { nullptr, nullptr };
 static int s_active_slot_index = 0; // For callback_handler().
 
+static bool s_is_common_init = false;
+
+static void init_common_if_necessary(void)
+{
+    if(!s_is_common_init)
+    {
+        common_init();
+
+        //common_log_pause(common_log_main());
+        //
+        //static void llama_log_callback_null(ggml_log_level level, const char * text, void * user_data) { (void) level; (void) text; (void) user_data; }
+        //llama_log_set(llama_log_callback_null, NULL);
+    }
+}
+
 /** Calculate the probability of each token's logit in the given vector via
  *  softmax.
  *
@@ -1044,12 +1059,7 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_reinit(
         return false;
     }
 
-    common_init(); // TODO: Problem, if called multiple times?
-
-    //common_log_pause(common_log_main());
-    //
-    //static void llama_log_callback_null(ggml_log_level level, const char * text, void * user_data) { (void) level; (void) text; (void) user_data; }
-    //llama_log_set(llama_log_callback_null, NULL);
+    init_common_if_necessary();
 
     if(s_slots != nullptr)
     {
