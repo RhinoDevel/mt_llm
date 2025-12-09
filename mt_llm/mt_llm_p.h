@@ -38,7 +38,6 @@ struct mt_llm_p
     // *** llama_context_params ***
     // ****************************
 
-    uint32_t seed; // -1 = Random number.
     uint32_t n_ctx; // 0 = Use context size of model.
     uint32_t threads; // Number of threads to use for inference
                       // (0 = system-dependent).
@@ -46,7 +45,8 @@ struct mt_llm_p
     // *****************************
     // *** llama_sampling_params ***
     // *****************************
-    
+
+    uint32_t seed; // -1 = Random number.
     int32_t top_k; // top_k <= 0 to use vocabulary's size.
     float top_p; // 1.0f to disable.
     float min_p; // 0.0f to disable.
@@ -59,7 +59,6 @@ struct mt_llm_p
     // **************
 
     // Keep all Mixture of Experts (MoE) weights in the CPU:
-    //
     uint8_t cpu_moe; // 0 = false, true otherwise.
 
     char model_file_path[MT_LLM_P_LEN_MODEL_FILE_PATH]; 

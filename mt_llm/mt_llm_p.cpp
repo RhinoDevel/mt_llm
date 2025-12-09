@@ -13,10 +13,10 @@ void mt_llm_p_print(struct mt_llm_p const & mt_p)
 {
     MT_LOG("n_gpu_layers" ": " "%d" "\n", mt_p.n_gpu_layers);
 
-    MT_LOG("seed" ": "  "%u" "\n", mt_p.seed);
     MT_LOG("n_ctx" ": " "%u" "\n", mt_p.n_ctx);
     MT_LOG("threads" ": " "%u" "\n", mt_p.threads);
 
+    MT_LOG("seed" ": "  "%u" "\n", mt_p.seed);
     MT_LOG("top_k" ": " "\"%d\"" "\n", mt_p.top_k);
     MT_LOG("top_p" ": " "\"%f\"" "\n", mt_p.top_p);
     MT_LOG("min_p" ": " "\"%f\"" "\n", mt_p.min_p);
@@ -70,10 +70,10 @@ struct mt_llm_p * mt_llm_p_create_copy(struct mt_llm_p const & mt_p)
 
     copy->n_gpu_layers = mt_p.n_gpu_layers;
 
-    copy->seed = mt_p.seed;
     copy->n_ctx = mt_p.n_ctx;
     copy->threads = mt_p.threads;
 
+    copy->seed = mt_p.seed;
     copy->top_k = mt_p.top_k;
     copy->top_p = mt_p.top_p;
     copy->min_p = mt_p.min_p;
