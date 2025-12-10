@@ -29,7 +29,20 @@ static llama_context_params get_ctx_params(mt_llm_p const & mt_p)
 
     if(mt_p.embeddings != 0)
     {
-        ret_val.embeddings = true; // Etract embeddings (together with logits).
+        // Currently, this is hard-coded (above) for non-batch processing.
+        // If we wanted to process multiple sequences at once, we should make
+        // use of the parameters .kv_unified and/or .n_parallel, too (see
+        // llama.cpp example).
+
+        // Required for non-causal models, only (so maybe not necessary..):
+        assert(ret_val.n_batch == ret_val.n_ubatch);
+
+        ret_val.embeddings = true; // Extract embeddings (together with logits).
+
+        // To get the semantic meaning (or what the output vector represents) of
+        // all tokens from the output, not just the last one (if I understood
+        // correctly..):
+        ret_val.pooling_type = LLAMA_POOLING_TYPE_MEAN; // Hard-coded
     }
 
     return ret_val;
