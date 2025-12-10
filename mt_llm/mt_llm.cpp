@@ -29,6 +29,17 @@ static int s_active_slot_index = 0; // For callback_handler().
 static bool s_is_common_init = false;
 static bool s_is_backend_init = false;
 
+static void clear_llama_memory(int const slot_index)
+{
+    llama_memory_t kv = llama_get_memory(s_slots[slot_index]->ctx);
+
+    if(kv != nullptr)
+    {
+        llama_memory_clear(kv, true);
+        kv = nullptr;
+    }
+}
+
 static void init_common_if_necessary(void)
 {
     if(!s_is_common_init)
@@ -984,9 +995,15 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_query(
     return true;
 }
 
-MT_EXPORT_LLM_API char* __stdcall mt_llm_create_embeddings(
-    char const * const prompt, int const slot_index)
+MT_EXPORT_LLM_API float* __stdcall mt_llm_create_embeddings(
+    char const * const prompt, int const slot_index, int * const out_count)
 {
+    assert(prompt != nullptr);
+    assert(out_count != nullptr);
+
+    std::vector<llama_token> inp;
+    llama_batch batch;
+
     if(slot_index != 0 && slot_index != 1)
     {
         MT_LOG("Error: Unsupported slot index given, doing nothing.\n");
@@ -1010,6 +1027,50 @@ MT_EXPORT_LLM_API char* __stdcall mt_llm_create_embeddings(
     assert(s_slots[slot_index]->ctx != nullptr);
     //assert(s_slots[slot_index]->sampler != nullptr); // Does not matter.
 
+    enum llama_pooling_type const pooling_type =
+        llama_pooling_type(s_slots[slot_index]->ctx);
+
+    // No support for reranking (yet).
+    assert(pooling_type != LLAMA_POOLING_TYPE_RANK);
+
+    clear_llama_memory(slot_index);
+
+    inp = common_tokenize(
+            s_slots[slot_index]->ctx,
+            prompt, // <- Implicit conversion.
+            true, // Add specials.
+            true); // Parse specials.
+
+    const llama_vocab * const vocab = llama_model_get_vocab(
+        s_slots[slot_index]->model);
+
+    if(inp.empty()
+        || (inp.back() != llama_vocab_sep(vocab)
+                && inp.back() != llama_vocab_eos(vocab)))
+    {
+        MT_LOG("Warning: Last token in the prompt is not SEP or EOS.\n");
+        // tokenizer.ggml.add_eos_token should be set to true in the GGUF
+        // header.
+    }
+
+    MT_LOG("Prompt: \"%s\"\n", prompt);
+    MT_LOG("Number of tokens in prompt: %zu\n", inp.size());
+    for(int i = 0; i < (int)inp.size(); ++i)
+    {
+        MT_LOG(
+            "%6d => \"%s\"\n",
+            inp[i],
+            common_token_to_piece(s_slots[slot_index]->ctx, inp[i])
+                .c_str());
+    }
+
+    batch = llama_batch_init(1, 0, 1);
+
+    assert(pooling_type != LLAMA_POOLING_TYPE_NONE);
+    int const n_embd_count = 1;
+
+    llama_batch_free(batch);
+
     return nullptr; // TODO: Implement!
 }
 
@@ -1032,15 +1093,7 @@ MT_EXPORT_LLM_API void __stdcall mt_llm_reset(
     assert(s_slots[slot_index]->ctx != nullptr);
     assert(s_slots[slot_index]->sampler != nullptr);
 
-    {
-        llama_memory_t kv = llama_get_memory(s_slots[slot_index]->ctx);
-
-        if(kv != nullptr)
-        {
-            llama_memory_clear(kv, true);
-            kv = nullptr;
-        }
-    }
+    clear_llama_memory(slot_index);
 
     llama_sampler_reset(s_slots[slot_index]->sampler);
 

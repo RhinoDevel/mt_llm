@@ -69,9 +69,10 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_query(
  * - Caller takes ownership of the returned, zero-terminated C-string.
  * - Returns nullptr and does nothing, if not initialized or invalid slot index
  *   or NOT configured for embeddings creation.
+ * - Clears the memory (K/V) before creation of embeddings.
  */
-MT_EXPORT_LLM_API char* __stdcall mt_llm_create_embeddings(
-    char const * const prompt, int const slot_index);
+MT_EXPORT_LLM_API float* __stdcall mt_llm_create_embeddings(
+    char const * const prompt, int const slot_index, int * const out_count);
 
 /** Reset state, as if the model just got loaded. Optionally update system
  *  prompt.
