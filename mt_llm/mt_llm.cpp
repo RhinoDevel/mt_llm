@@ -1003,6 +1003,7 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_create_embeddings(
 
     std::vector<llama_token> inp;
     llama_batch batch;
+    float* emb = nullptr;
 
     if(slot_index != 0 && slot_index != 1)
     {
@@ -1064,14 +1065,37 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_create_embeddings(
                 .c_str());
     }
 
-    batch = llama_batch_init(1, 0, 1);
+    batch = llama_batch_init(
+        inp.size(),
+        0, // TODO: Correct?
+        1);
 
     assert(pooling_type != LLAMA_POOLING_TYPE_NONE);
-    int const n_embd_count = 1;
+    
+    const int n_embd = llama_model_n_embd(s_slots[slot_index]->model);
+
+    assert(0 < n_embd);
+
+    for(int i = 0; i < inp.size(); ++i)
+    {
+        common_batch_add(batch, inp[i], i, { 0 }, true);
+    }
+
+    // Run model:
+    if(llama_decode(s_slots[slot_index]->ctx, batch) < 0)
+    {
+        MT_LOG_ERR("Failed to decode batch!\n");
+        llama_batch_free(batch);
+        assert(emb == nullptr);
+        return nullptr;
+    }
+
+    // TODO: Implement!
 
     llama_batch_free(batch);
 
-    return nullptr; // TODO: Implement!
+    *out_count = n_embd;
+    return emb; // Caller takes ownership.
 }
 
 MT_EXPORT_LLM_API void __stdcall mt_llm_reset(
