@@ -803,6 +803,11 @@ MT_EXPORT_LLM_API int mt_llm_get_token_count(
         MT_LOG_ERR("NULL given!\n");
         return -2;
     }
+    if(s_slots[slot_index]->mt_p->embeddings != 0)
+    {
+        MT_LOG_ERR("Configured for embeddings creation!\n");
+        return -4;
+    }
 
     std::vector<int> const tokens = mt_llm_ctx_tokenize(
         *s_slots[slot_index]->ctx, text, add_special);
@@ -913,13 +918,19 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_query(
 {
     if(slot_index != 0 && slot_index != 1)
     {
-        MT_LOG("Error: Unsupported slot index given, doing nothing.");
+        MT_LOG("Error: Unsupported slot index given, doing nothing.\n");
         return false;
     }
 
     if(s_slots[slot_index] == nullptr)
     {
         MT_LOG_ERR("Not intialized!\n");
+        return false;
+    }
+
+    if(s_slots[slot_index]->mt_p->embeddings != 0)
+    {
+        MT_LOG_ERR("Configured for embeddings creation!\n");
         return false;
     }
 
@@ -971,6 +982,35 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_query(
 
     MT_LOG("Token count: %d.\n", s_slots[slot_index]->tok_cnt);
     return true;
+}
+
+MT_EXPORT_LLM_API char* __stdcall mt_llm_create_embeddings(
+    char const * const prompt, int const slot_index)
+{
+    if(slot_index != 0 && slot_index != 1)
+    {
+        MT_LOG("Error: Unsupported slot index given, doing nothing.\n");
+        return nullptr;
+    }
+
+    if(s_slots[slot_index] == nullptr)
+    {
+        MT_LOG_ERR("Not intialized!\n");
+        return nullptr;
+    }
+
+    if(s_slots[slot_index]->mt_p->embeddings == 0)
+    {
+        MT_LOG_ERR("NOT configured for embeddings creation!\n");
+        return nullptr;
+    }
+
+    assert(s_slots[slot_index]->mt_p != nullptr);
+    assert(s_slots[slot_index]->model != nullptr);
+    assert(s_slots[slot_index]->ctx != nullptr);
+    //assert(s_slots[slot_index]->sampler != nullptr); // Does not matter.
+
+    return nullptr; // TODO: Implement!
 }
 
 MT_EXPORT_LLM_API void __stdcall mt_llm_reset(
@@ -1140,7 +1180,7 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_reinit(
         return false;
     }
 
-    // Initialize the sampling:
+    // Initialize the sampling (unnecessary for embeddings creation):
     //
     s_slots[slot_index]->sampler = create_sampler(
         llama_model_get_vocab(s_slots[slot_index]->model), slot_index);
@@ -1152,7 +1192,8 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_reinit(
     }
 
     // Support for models with an encoder should be easy to add, but is
-    // currently not implemented:
+    // currently not implemented (although for embeddings, models with encoder
+    // AND decoder are not supported):
     //
     if(llama_model_has_encoder(s_slots[slot_index]->model))
     {
@@ -1161,7 +1202,8 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_reinit(
         return false;
     }
 
-    // Modify prompt strings by model (name), if wanted:
+    // Modify prompt strings by model (name), if wanted (maybe unnecessary for
+    // embeddings creation):
     //
     if(s_slots[slot_index]->mt_p->try_prompts_by_model != 0)
     {

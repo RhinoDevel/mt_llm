@@ -24,6 +24,7 @@ extern "C" {
 
 /**
  * - Slot index may be 0 or 1.
+ * - Returns -4, if configured to create embeddings.
  * - Returns -3, if given slot index is invalid.
  * - Returns -1, if not initialized.
  * - Returns -2, if nullptr given.
@@ -54,13 +55,23 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_state_restore(
 
 /**
  * - Slot index may be 0 or 1.
- * - Returns false and does nothing, if not initialized or invalid slot index.
+ * - Returns false and does nothing, if not initialized or invalid slot index or
+ *   configured for embeddings creation.
  */
 MT_EXPORT_LLM_API bool __stdcall mt_llm_query(
     char const * const prompt,
     int const slot_index,
     bool const skip_sys_prompt_end_delim_and_inference,
     bool const follow_up_decode_prompt_and_sys_prompt_end_delim);
+
+/**
+ * - Slot index may be 0 or 1.
+ * - Caller takes ownership of the returned, zero-terminated C-string.
+ * - Returns nullptr and does nothing, if not initialized or invalid slot index
+ *   or NOT configured for embeddings creation.
+ */
+MT_EXPORT_LLM_API char* __stdcall mt_llm_create_embeddings(
+    char const * const prompt, int const slot_index);
 
 /** Reset state, as if the model just got loaded. Optionally update system
  *  prompt.
