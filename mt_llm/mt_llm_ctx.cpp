@@ -32,7 +32,7 @@ static llama_context_params get_ctx_params(mt_llm_p const & mt_p)
         // Currently, this is hard-coded (above) for non-batch processing.
         // If we wanted to process multiple sequences at once, we should make
         // use of the parameters .kv_unified and/or .n_parallel, too (see
-        // llama.cpp example).
+        // llama.cpp example) and set .n_batch to .n_ctx.
 
         // Required for non-causal models, only (so maybe not necessary..):
         assert(ret_val.n_batch == ret_val.n_ubatch);
