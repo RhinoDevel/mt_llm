@@ -1090,7 +1090,39 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_create_embeddings(
         return nullptr;
     }
 
-    // TODO: Implement!
+    for(int i = 0; i < batch.n_tokens; ++i) // Stupid to use a loop, here?
+    {
+        float const * embd = nullptr;
+
+        if(batch.logits[i] == 0)
+        {
+            continue;
+        }
+
+        // Just not implemented/supported, here.
+        assert(pooling_type != LLAMA_POOLING_TYPE_NONE);
+
+        embd = llama_get_embeddings_seq(
+            s_slots[slot_index]->ctx, batch.seq_id[i][0]);
+        if(embd == nullptr)
+        {
+            MT_LOG_ERR("Failed to get sequence embeddings!\n");
+            llama_batch_free(batch);
+            assert(emb == nullptr);
+            return nullptr;
+        }
+
+        emb = static_cast<float*>(malloc(n_embd * sizeof * emb));
+        assert(emb != nullptr);
+
+        common_embd_normalize(
+            embd,
+            emb,
+            n_embd,
+            2); // <- Euclidean normalization.
+
+        break;
+    }
 
     llama_batch_free(batch);
 
