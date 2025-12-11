@@ -29,7 +29,7 @@ static llama_context_params get_ctx_params(mt_llm_p const & mt_p)
 
     if(mt_p.embeddings != 0)
     {
-        // Currently, this is hard-coded (above) for non-batch processing.
+        // Currently, this is hard-coded (above) for single-sequence processing.
         // If we wanted to process multiple sequences at once, we should make
         // use of the parameters .kv_unified and/or .n_parallel, too (see
         // llama.cpp example) and set .n_batch to .n_ctx.
