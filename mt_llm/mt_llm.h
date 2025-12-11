@@ -22,6 +22,8 @@
 extern "C" {
 #endif //__cplusplus
 
+MT_EXPORT_LLM_API void __stdcall mt_llm_free(void * const ptr);
+
 /**
  * - Slot index may be 0 or 1.
  * - Returns -4, if configured to create embeddings.
@@ -66,7 +68,9 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_query(
 
 /**
  * - Slot index may be 0 or 1.
- * - Caller takes ownership of the returned, zero-terminated C-string.
+ * - Caller takes ownership of the returned array, must be freed via
+ *   mt_llm_free().
+ * 
  * - Returns nullptr and does nothing, if not initialized or invalid slot index
  *   or NOT configured for embeddings creation.
  * - Clears the memory (K/V) before creation of embeddings.

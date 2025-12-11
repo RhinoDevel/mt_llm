@@ -795,6 +795,11 @@ static llama_sampler* create_sampler(
     return ret_val;
 }
 
+MT_EXPORT_LLM_API void __stdcall mt_llm_free(void * const ptr)
+{
+    free(ptr);
+}
+
 MT_EXPORT_LLM_API int mt_llm_get_token_count(
     char const * const text, bool const add_special, int const slot_index)
 {
@@ -1096,7 +1101,8 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_create_embeddings(
             inp[i],
             i,
             { 0 }, // Single sequence with ID 0.
-            i == inp.size() - 1); // "Request" embeddings for the last token.
+            true); // <- Seems to be expected..
+            //i == inp.size() - 1); // "Request" embeddings for the last token.
     }
 
     assert(batch.n_tokens == inp.size()); // (just for my understanding)
@@ -1107,7 +1113,7 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_create_embeddings(
         llama_batch_free(batch);
         return nullptr;
     }
-    
+
     assert(batch.n_tokens == inp.size()); // (just for my understanding)
 
     // Anything else is just not implemented/supported, here:
@@ -1242,9 +1248,9 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_reinit(
     }
     assert(s_slots[slot_index] == nullptr);
 
-    if(mt_p->callback == nullptr)
+    if(mt_p->callback == nullptr && !mt_p->embeddings)
     {
-        MT_LOG_ERR("Callback is not set!\n");
+        MT_LOG_ERR("Callback is not set (only allowed for embedding vector generation)!\n");
         //mt_llm_deinit(slot_index);
         return false;
     }
