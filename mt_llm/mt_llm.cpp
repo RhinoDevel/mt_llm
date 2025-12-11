@@ -1064,13 +1064,12 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_create_embeddings(
     MT_LOG("Number of tokens in prompt: %zu\n", inp.size());
 
 #ifndef NDEBUG
-    for(int i = 0; i < (int)inp.size(); ++i)
+    for(int i = 0; i < static_cast<int>(inp.size()); ++i)
     {
         MT_LOG(
             "%6d => \"%s\"\n",
             inp[i],
-            common_token_to_piece(s_slots[slot_index]->ctx, inp[i])
-                .c_str());
+            common_token_to_piece(s_slots[slot_index]->ctx, inp[i]).c_str());
     }
 #endif //NDEBUG
 
@@ -1092,7 +1091,12 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_create_embeddings(
 
     for(int i = 0; i < inp.size(); ++i)
     {
-        common_batch_add(batch, inp[i], i, { 0 }, true);
+        common_batch_add(
+            batch,
+            inp[i],
+            i,
+            { 0 }, // Single sequence with ID 0.
+            i == inp.size() - 1); // "Request" embeddings for the last token.
     }
 
     assert(batch.n_tokens == inp.size()); // (just for my understanding)
@@ -1106,10 +1110,10 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_create_embeddings(
     
     assert(batch.n_tokens == inp.size()); // (just for my understanding)
 
-    // Anything else is just not implemented/supported, here.
+    // Anything else is just not implemented/supported, here:
     assert(pooling_type != LLAMA_POOLING_TYPE_MEAN);
     assert(0 < batch.n_tokens);
-    assert(batch.logits[batch.n_tokens - 1] != 0);
+    assert(batch.logits[batch.n_tokens - 1] != 0); // Embeddings requested?
     float const * const embd = llama_get_embeddings_seq(
         s_slots[slot_index]->ctx, 0); // (0 is the sole sequence ID used)
 
