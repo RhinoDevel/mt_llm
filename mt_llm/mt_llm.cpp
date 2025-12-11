@@ -998,12 +998,10 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_query(
 MT_EXPORT_LLM_API float* __stdcall mt_llm_create_embeddings(
     char const * const prompt, int const slot_index, int * const out_count)
 {
-    assert(prompt != nullptr);
     assert(out_count != nullptr);
 
     std::vector<llama_token> inp;
     llama_batch batch;
-    float* emb = nullptr;
 
     if(slot_index != 0 && slot_index != 1)
     {
@@ -1020,6 +1018,13 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_create_embeddings(
     if(s_slots[slot_index]->mt_p->embeddings == 0)
     {
         MT_LOG_ERR("NOT configured for embeddings creation!\n");
+        return nullptr;
+    }
+
+    if(prompt == nullptr
+        || (strnlen_s(prompt, 65535) == 65535)) // <- Hard-coded limit.
+    {
+        MT_LOG_ERR("Prompt is not given or it is no or a too long C-string!\n");
         return nullptr;
     }
 
@@ -1049,13 +1054,16 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_create_embeddings(
         || (inp.back() != llama_vocab_sep(vocab)
                 && inp.back() != llama_vocab_eos(vocab)))
     {
-        MT_LOG("Warning: Last token in the prompt is not SEP or EOS.\n");
+        MT_LOG("Warning: Last token in the prompt is neither SEP nor EOS.\n");
+
         // tokenizer.ggml.add_eos_token should be set to true in the GGUF
         // header.
     }
 
     MT_LOG("Prompt: \"%s\"\n", prompt);
     MT_LOG("Number of tokens in prompt: %zu\n", inp.size());
+
+#ifndef NDEBUG
     for(int i = 0; i < (int)inp.size(); ++i)
     {
         MT_LOG(
@@ -1064,15 +1072,21 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_create_embeddings(
             common_token_to_piece(s_slots[slot_index]->ctx, inp[i])
                 .c_str());
     }
+#endif //NDEBUG
 
     batch = llama_batch_init(
-        inp.size(),
-        0, // TODO: Correct?
-        1);
+        static_cast<int32_t>(inp.size()),
+
+        // No embeddings, because these would be INPUT TOKEN embeddings to use
+        // instead of creating them from actual input tokens (to speed up the
+        // process):
+        0,
+
+        1); // Single sequence.
 
     assert(pooling_type != LLAMA_POOLING_TYPE_NONE);
     
-    const int n_embd = llama_model_n_embd(s_slots[slot_index]->model);
+    int const n_embd = llama_model_n_embd(s_slots[slot_index]->model);
 
     assert(0 < n_embd);
 
@@ -1081,48 +1095,40 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_create_embeddings(
         common_batch_add(batch, inp[i], i, { 0 }, true);
     }
 
-    // Run model:
-    if(llama_decode(s_slots[slot_index]->ctx, batch) < 0)
+    assert(batch.n_tokens == inp.size()); // (just for my understanding)
+
+    if(llama_decode(s_slots[slot_index]->ctx, batch) != 0)
     {
         MT_LOG_ERR("Failed to decode batch!\n");
         llama_batch_free(batch);
-        assert(emb == nullptr);
+        return nullptr;
+    }
+    
+    assert(batch.n_tokens == inp.size()); // (just for my understanding)
+
+    // Anything else is just not implemented/supported, here.
+    assert(pooling_type != LLAMA_POOLING_TYPE_MEAN);
+    assert(0 < batch.n_tokens);
+    assert(batch.logits[batch.n_tokens - 1] != 0);
+    float const * const embd = llama_get_embeddings_seq(
+        s_slots[slot_index]->ctx, 0); // (0 is the sole sequence ID used)
+
+    if(embd == nullptr)
+    {
+        MT_LOG_ERR("Failed to get sequence embeddings!\n");
+        llama_batch_free(batch);
         return nullptr;
     }
 
-    for(int i = 0; i < batch.n_tokens; ++i) // Stupid to use a loop, here?
-    {
-        float const * embd = nullptr;
+    float * const emb = static_cast<float*>(malloc(n_embd * sizeof *emb));
 
-        if(batch.logits[i] == 0)
-        {
-            continue;
-        }
+    assert(emb != nullptr);
 
-        // Just not implemented/supported, here.
-        assert(pooling_type != LLAMA_POOLING_TYPE_NONE);
-
-        embd = llama_get_embeddings_seq(
-            s_slots[slot_index]->ctx, batch.seq_id[i][0]);
-        if(embd == nullptr)
-        {
-            MT_LOG_ERR("Failed to get sequence embeddings!\n");
-            llama_batch_free(batch);
-            assert(emb == nullptr);
-            return nullptr;
-        }
-
-        emb = static_cast<float*>(malloc(n_embd * sizeof * emb));
-        assert(emb != nullptr);
-
-        common_embd_normalize(
-            embd,
-            emb,
-            n_embd,
-            2); // <- Euclidean normalization.
-
-        break;
-    }
+    common_embd_normalize(
+        embd,
+        emb,
+        n_embd,
+        2); // <- Euclidean normalization.
 
     llama_batch_free(batch);
 
