@@ -1003,17 +1003,27 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_query(
 MT_EXPORT_LLM_API float* __stdcall mt_llm_create_embeddings(
     char const * const prompt, int const slot_index, int * const out_count)
 {
-    assert(out_count != nullptr);
-
     std::vector<llama_token> inp;
     llama_batch batch;
 
-    if(slot_index != 0 && slot_index != 1)
+    // *************************************************************************
+    // *** Check input arguments and (context) configuration:                ***
+    // *************************************************************************
+
+    assert(out_count != nullptr);
+
+    if(prompt == nullptr
+        || (strnlen_s(prompt, 65535) == 65535)) // <- Hard-coded limit.
     {
-        MT_LOG("Error: Unsupported slot index given, doing nothing.\n");
+        MT_LOG_ERR("Prompt is not given or it is no or a too long C-string!\n");
         return nullptr;
     }
 
+    if(slot_index != 0 && slot_index != 1)
+    {
+        MT_LOG_ERR("Unsupported slot index given, doing nothing.\n");
+        return nullptr;
+    }
     if(s_slots[slot_index] == nullptr)
     {
         MT_LOG_ERR("Not intialized!\n");
@@ -1026,13 +1036,6 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_create_embeddings(
         return nullptr;
     }
 
-    if(prompt == nullptr
-        || (strnlen_s(prompt, 65535) == 65535)) // <- Hard-coded limit.
-    {
-        MT_LOG_ERR("Prompt is not given or it is no or a too long C-string!\n");
-        return nullptr;
-    }
-
     assert(s_slots[slot_index]->mt_p != nullptr);
     assert(s_slots[slot_index]->model != nullptr);
     assert(s_slots[slot_index]->ctx != nullptr);
@@ -1041,23 +1044,37 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_create_embeddings(
     enum llama_pooling_type const pooling_type =
         llama_pooling_type(s_slots[slot_index]->ctx);
 
-    // No support for reranking (yet).
-    assert(pooling_type != LLAMA_POOLING_TYPE_RANK);
+    // No support for other pooling types (e.g. for a reranking model), here:
+    assert(pooling_type != LLAMA_POOLING_TYPE_MEAN); // See mt_llm_ctx_create().
+
+    // *************************************************************************
+    // *** Clear the memory (K/V cache):                                     ***
+    // *************************************************************************
 
     clear_llama_memory(slot_index);
+
+    // *************************************************************************
+    // *** Get token representation of given prompt/text:                    ***
+    // *************************************************************************
+
+    MT_LOG("Prompt: \"%s\"\n", prompt);
 
     inp = common_tokenize(
             s_slots[slot_index]->ctx,
             prompt, // <- Implicit conversion.
             true, // Add specials.
             true); // Parse specials.
+    if(inp.size() == 0)
+    {
+        MT_LOG_ERR("No tokens generated from given prompt!\n");
+        return nullptr;
+    }
 
     const llama_vocab * const vocab = llama_model_get_vocab(
         s_slots[slot_index]->model);
 
-    if(inp.empty()
-        || (inp.back() != llama_vocab_sep(vocab)
-                && inp.back() != llama_vocab_eos(vocab)))
+    if(inp.back() != llama_vocab_sep(vocab)
+        && inp.back() != llama_vocab_eos(vocab))
     {
         MT_LOG("Warning: Last token in the prompt is neither SEP nor EOS.\n");
 
@@ -1065,7 +1082,6 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_create_embeddings(
         // header.
     }
 
-    MT_LOG("Prompt: \"%s\"\n", prompt);
     MT_LOG("Number of tokens in prompt: %zu\n", inp.size());
 
 #ifndef NDEBUG
@@ -1078,6 +1094,10 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_create_embeddings(
     }
 #endif //NDEBUG
 
+    // *************************************************************************
+    // *** Fill model's decoder with the generated tokens:                   ***
+    // *************************************************************************
+
     batch = llama_batch_init(
         static_cast<int32_t>(inp.size()),
 
@@ -1088,8 +1108,6 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_create_embeddings(
 
         1); // Single sequence.
 
-    assert(pooling_type != LLAMA_POOLING_TYPE_NONE);
-    
     int const n_embd = llama_model_n_embd(s_slots[slot_index]->model);
 
     assert(0 < n_embd);
@@ -1116,8 +1134,10 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_create_embeddings(
 
     assert(batch.n_tokens == inp.size()); // (just for my understanding)
 
-    // Anything else is just not implemented/supported, here:
-    assert(pooling_type != LLAMA_POOLING_TYPE_MEAN);
+    // *************************************************************************
+    // *** Get embedding vector:                                             ***
+    // *************************************************************************
+
     assert(0 < batch.n_tokens);
     assert(batch.logits[batch.n_tokens - 1] != 0); // Embeddings requested?
     float const * const embd = llama_get_embeddings_seq(
@@ -1130,6 +1150,10 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_create_embeddings(
         return nullptr;
     }
 
+    // *************************************************************************
+    // *** Create (Euclidean) normalized copy of the embedding vector:       ***
+    // *************************************************************************
+
     float * const emb = static_cast<float*>(malloc(n_embd * sizeof *emb));
 
     assert(emb != nullptr);
@@ -1140,8 +1164,11 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_create_embeddings(
         n_embd,
         2); // <- Euclidean normalization.
 
-    llama_batch_free(batch);
+    // *************************************************************************
+    // *** Free some memory, set/return result:                              ***
+    // *************************************************************************
 
+    llama_batch_free(batch); // It might be possible to free the batch earlier..
     *out_count = n_embd;
     return emb; // Caller takes ownership.
 }
