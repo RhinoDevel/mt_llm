@@ -1004,7 +1004,6 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_create_embeddings(
     char const * const prompt, int const slot_index, int * const out_count)
 {
     std::vector<llama_token> inp;
-    llama_batch batch;
 
     // *************************************************************************
     // *** Check input arguments and (context) configuration:                ***
@@ -1045,7 +1044,7 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_create_embeddings(
         llama_pooling_type(s_slots[slot_index]->ctx);
 
     // No support for other pooling types (e.g. for a reranking model), here:
-    assert(pooling_type != LLAMA_POOLING_TYPE_MEAN); // See mt_llm_ctx_create().
+    assert(pooling_type == LLAMA_POOLING_TYPE_MEAN); // See mt_llm_ctx_create().
 
     // *************************************************************************
     // *** Clear the memory (K/V cache):                                     ***
@@ -1098,61 +1097,63 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_create_embeddings(
     // *** Fill model's decoder with the generated tokens:                   ***
     // *************************************************************************
 
-    batch = llama_batch_init(
-        static_cast<int32_t>(inp.size()),
-
-        // No embeddings, because these would be INPUT TOKEN embeddings to use
-        // instead of creating them from actual input tokens (to speed up the
-        // process):
-        0,
-
-        1); // Single sequence.
-
-    int const n_embd = llama_model_n_embd(s_slots[slot_index]->model);
-
-    assert(0 < n_embd);
-
+    // mt_llm_ctx_create() is (currently?) setting up everything for a batch
+    // size of 1 (which means that only one token can be send to the decoder
+    // function at once - btw.: that can probably get performance-improved..).
     for(int i = 0; i < inp.size(); ++i)
     {
+        llama_batch batch = llama_batch_init(
+            1,
+
+            // No embeddings, because these would be INPUT TOKEN embeddings to
+            // use instead of creating them from actual input tokens (to speed
+            // up the process):
+            0,
+
+            1); // Single sequence.
+
         common_batch_add(
             batch,
             inp[i],
             i,
             { 0 }, // Single sequence with ID 0.
-            true); // <- Seems to be expected..
-            //i == inp.size() - 1); // "Request" embeddings for the last token.
-    }
 
-    assert(batch.n_tokens == inp.size()); // (just for my understanding)
+            // It seems to be expected/necessary to request embeddings for ALL
+            // tokens, not just the last one:
+            true);
 
-    if(llama_decode(s_slots[slot_index]->ctx, batch) != 0)
-    {
-        MT_LOG_ERR("Failed to decode batch!\n");
+        if(llama_decode(s_slots[slot_index]->ctx, batch) != 0)
+        {
+            MT_LOG_ERR(
+                "Failed to decode token nr. %d of %d!\n",
+                i,
+                static_cast<int>(inp.size()));
+            llama_batch_free(batch);
+            return nullptr;
+        }
         llama_batch_free(batch);
-        return nullptr;
     }
-
-    assert(batch.n_tokens == inp.size()); // (just for my understanding)
 
     // *************************************************************************
     // *** Get embedding vector:                                             ***
     // *************************************************************************
 
-    assert(0 < batch.n_tokens);
-    assert(batch.logits[batch.n_tokens - 1] != 0); // Embeddings requested?
     float const * const embd = llama_get_embeddings_seq(
         s_slots[slot_index]->ctx, 0); // (0 is the sole sequence ID used)
 
     if(embd == nullptr)
     {
         MT_LOG_ERR("Failed to get sequence embeddings!\n");
-        llama_batch_free(batch);
         return nullptr;
     }
 
     // *************************************************************************
     // *** Create (Euclidean) normalized copy of the embedding vector:       ***
     // *************************************************************************
+
+    int const n_embd = llama_model_n_embd(s_slots[slot_index]->model);
+
+    assert(0 < n_embd);
 
     float * const emb = static_cast<float*>(malloc(n_embd * sizeof *emb));
 
@@ -1168,7 +1169,6 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_create_embeddings(
     // *** Free some memory, set/return result:                              ***
     // *************************************************************************
 
-    llama_batch_free(batch); // It might be possible to free the batch earlier..
     *out_count = n_embd;
     return emb; // Caller takes ownership.
 }
