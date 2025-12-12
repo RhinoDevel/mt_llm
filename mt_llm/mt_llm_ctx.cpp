@@ -6,12 +6,14 @@
 
 #include "llama.h"
 #include "common.h"
+#include "llama-model.h"
 
 #include "mt_llm_p.h"
 #include "mt_llm_ctx.h"
 #include "mt_llm_log.h"
 
-static llama_context_params get_ctx_params(mt_llm_p const & mt_p)
+static llama_context_params get_ctx_params(
+    mt_llm_p const & mt_p, llama_model const & model)
 {
     llama_context_params ret_val = llama_context_default_params();
 
@@ -32,17 +34,52 @@ static llama_context_params get_ctx_params(mt_llm_p const & mt_p)
         // Currently, this is hard-coded (above) for single-sequence processing.
         // If we wanted to process multiple sequences at once, we should make
         // use of the parameters .kv_unified and/or .n_parallel, too (see
-        // llama.cpp example) and set .n_batch to .n_ctx.
+        // llama.cpp's example) and set .n_batch to .n_ctx.
 
         // Required for non-causal models, only (so maybe not necessary..):
         assert(ret_val.n_batch == ret_val.n_ubatch);
 
         ret_val.embeddings = true; // Extract embeddings (together with logits).
 
-        // To get the semantic meaning (or what the output vector represents) of
-        // all tokens from the output, not just the last one (if I understood
-        // correctly..):
-        ret_val.pooling_type = LLAMA_POOLING_TYPE_MEAN; // Hard-coded
+        // We are trying to use the default pooling type of the model, if known:
+
+        switch(model.hparams.pooling_type)
+        {
+            case LLAMA_POOLING_TYPE_MEAN: // Falls through.
+            case LLAMA_POOLING_TYPE_CLS: // Falls through.
+            case LLAMA_POOLING_TYPE_LAST:
+            {
+                // Should be supported (see llama.cpp's embedding.cpp example
+                // for reference..).
+                ret_val.pooling_type = model.hparams.pooling_type;
+                break;
+            }
+            
+            case LLAMA_POOLING_TYPE_UNSPECIFIED: // Falls through.
+            case LLAMA_POOLING_TYPE_NONE: // Falls through.
+            case LLAMA_POOLING_TYPE_RANK:
+            {
+                // At least "rank" pooling type can be supported, see
+                // llama.cpp's embedding.cpp sample.
+                ret_val.pooling_type = LLAMA_POOLING_TYPE_MEAN;
+                MT_LOG(
+                    "Warning: Model pooling type is %d, which is not supported. Using %d..\n",
+                    static_cast<int>(model.hparams.pooling_type),
+                    static_cast<int>(ret_val.pooling_type));
+                break;
+            }
+
+            default: // Other model pooling type (should not happen, here).
+            {
+                assert(false);
+                ret_val.pooling_type = LLAMA_POOLING_TYPE_MEAN;
+                MT_LOG(
+                    "Warning: Unsupported model pooling type %d. Using %d..\n",
+                    static_cast<int>(model.hparams.pooling_type),
+                    static_cast<int>(ret_val.pooling_type));
+                break;
+            }
+        }
     }
 
     return ret_val;
@@ -229,5 +266,5 @@ int mt_llm_ctx_decode(
 llama_context* mt_llm_ctx_create(
     mt_llm_p const & mt_p, llama_model& model)
 {
-    return llama_init_from_model(&model, get_ctx_params(mt_p));
+    return llama_init_from_model(&model, get_ctx_params(mt_p, model));
 }
