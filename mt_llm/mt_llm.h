@@ -74,6 +74,8 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_query(
  * - Returns nullptr and does nothing, if not initialized or invalid slot index
  *   or NOT configured for embeddings creation.
  * - Clears the memory (K/V) before creation of embeddings.
+ * - The returned embedding vector is (Euclidean) normalized (pooling type used
+ *   is "mean").
  */
 MT_EXPORT_LLM_API float* __stdcall mt_llm_create_embeddings(
     char const * const prompt, int const slot_index, int * const out_count);
