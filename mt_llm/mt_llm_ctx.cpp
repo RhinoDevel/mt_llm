@@ -18,28 +18,51 @@ static llama_context_params get_ctx_params(
     llama_context_params ret_val = llama_context_default_params();
 
     //mt_p.seed; // Used for the sampler somewhere else.
-    ret_val.n_ctx = mt_p.n_ctx;
     assert(0 < mt_p.threads);
     ret_val.n_threads = mt_p.threads;
     ret_val.n_threads_batch = ret_val.n_threads;
 
-    // Inference and decoding code is also written to use batch size of one:
-    //
-    ret_val.n_batch = 1; // Logical max. batch size.
-    ret_val.n_ubatch = 1; // Physical max. batch size.
     ret_val.n_seq_max = 1; // Max. number of sequences.
 
-    if(mt_p.embeddings != 0)
+    if(mt_p.embeddings == 0)
     {
-        // Currently, this is hard-coded (above) for single-sequence processing.
+        ret_val.n_ctx = mt_p.n_ctx;
+
+        // Inference and decoding code is also written to use batch size of one:
+        ret_val.n_batch = 1; // Logical max. batch size.
+        ret_val.n_ubatch = 1; // Physical max. batch size.
+    }
+    else
+    {
+        ret_val.embeddings = true; // Extract embeddings (together with logits).
+
         // If we wanted to process multiple sequences at once, we should make
         // use of the parameters .kv_unified and/or .n_parallel, too (see
-        // llama.cpp's example) and set .n_batch to .n_ctx.
+        // llama.cpp's example).
+
+        // llama.cpp seems to do pooling for embedding vector calculation over
+        // the latest batch / decode call, only. This is why the batch size of
+        // 1 is not possible for embedding vector creation.
+
+        int32_t const model_n_ctx_train = llama_model_n_ctx_train(&model);
+        assert(0 < model_n_ctx_train);
+
+        if(ret_val.n_ctx != 0 && ret_val.n_ctx != model_n_ctx_train)
+        {
+            MT_LOG(
+                "Warning: Wanted other ctx. size than the model's train. ctx. size, but using model's train. ctx. size of %d tokens, instead..",
+                static_cast<int>(model_n_ctx_train));
+        }
+        // This is for simplicity and RESTRICTS the maximum input prompt length
+        // for embedding!
+        ret_val.n_ctx = static_cast<uint32_t>(model_n_ctx_train);
+
+        // Assuming that these maximum batch sizes are OK for the hardware..
+        ret_val.n_batch = ret_val.n_ctx; // Logical max. batch size.
+        ret_val.n_ubatch = ret_val.n_ctx; // Physical max. batch size.
 
         // Required for non-causal models, only (so maybe not necessary..):
         assert(ret_val.n_batch == ret_val.n_ubatch);
-
-        ret_val.embeddings = true; // Extract embeddings (together with logits).
 
         // We are trying to use the default pooling type of the model, if known:
 
