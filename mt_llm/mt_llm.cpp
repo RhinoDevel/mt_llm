@@ -1115,7 +1115,7 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_create_embeddings(
     // *************************************************************************
 
     batch = llama_batch_init(
-        inp.size(),
+        static_cast<int32_t>(inp.size()),
 
         // No embeddings, because these would be INPUT TOKEN embeddings to
         // use instead of creating them from actual input tokens (to speed

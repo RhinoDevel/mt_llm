@@ -58,7 +58,7 @@ static llama_context_params get_ctx_params(
             // Use given context length.
             ret_val.n_ctx = mt_p.n_ctx;
 
-            if(ret_val.n_ctx < model_n_ctx_train)
+            if(ret_val.n_ctx < static_cast<uint32_t>(model_n_ctx_train))
             {
                 MT_LOG(
                     "Warning: Wanted/used ctx. size of %d tokens is less than the model's train. ctx. size of %d tokens.",
