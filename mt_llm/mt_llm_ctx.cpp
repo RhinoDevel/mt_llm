@@ -48,7 +48,7 @@ static llama_context_params get_ctx_params(
         int32_t const model_n_ctx_train = llama_model_n_ctx_train(&model);
         assert(0 < model_n_ctx_train);
 
-        if(ret_val.n_ctx != 0 && ret_val.n_ctx != model_n_ctx_train)
+        if(mt_p.n_ctx != 0 && mt_p.n_ctx != model_n_ctx_train)
         {
             MT_LOG(
                 "Warning: Wanted other ctx. size than the model's train. ctx. size, but using model's train. ctx. size of %d tokens, instead..",
