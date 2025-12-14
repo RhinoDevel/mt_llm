@@ -1054,10 +1054,6 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_create_embeddings(
 
     uint32_t const n_ctx = llama_n_ctx(s_slots[slot_index]->ctx);
 
-    assert( // See mt_llm_ctx_create().
-        n_ctx == static_cast<uint32_t>(
-            llama_model_n_ctx_train(s_slots[slot_index]->model)));
-
     // *************************************************************************
     // *** Clear the memory (K/V cache):                                     ***
     // *************************************************************************
@@ -1105,8 +1101,6 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_create_embeddings(
     }
 #endif //NDEBUG
 
-    // This could be supported by allowing a context length higher than the
-    // model's training context length:
     if(n_ctx < inp.size())
     {
         MT_LOG_ERR(
