@@ -41,8 +41,9 @@ static llama_context_params get_ctx_params(
         // llama.cpp's example).
 
         // llama.cpp seems to do pooling for embedding vector calculation over
-        // the latest batch / decode call, only. This is why the batch size of
-        // 1 is not possible for embedding vector creation.
+        // the latest batch / decode call, only (maybe this has something to do
+        // with embedding models being almost always NON-causal). This is why
+        // the batch size of 1 is not possible for embedding vector creation.
 
         int32_t const model_n_ctx_train = llama_model_n_ctx_train(&model);
         assert(0 < model_n_ctx_train);
@@ -61,7 +62,7 @@ static llama_context_params get_ctx_params(
         ret_val.n_batch = ret_val.n_ctx; // Logical max. batch size.
         ret_val.n_ubatch = ret_val.n_ctx; // Physical max. batch size.
 
-        // Required for non-causal models, only (so maybe not necessary..):
+        // Required for non-causal models:
         assert(ret_val.n_batch == ret_val.n_ubatch);
 
         // We are trying to use the default pooling type of the model, if known:
