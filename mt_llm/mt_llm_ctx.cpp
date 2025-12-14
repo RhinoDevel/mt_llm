@@ -45,26 +45,19 @@ static llama_context_params get_ctx_params(
         // with embedding models being almost always NON-causal). This is why
         // the batch size of 1 is not possible for embedding vector creation.
 
-        int32_t const model_n_ctx_train = llama_model_n_ctx_train(&model);
-        assert(0 < model_n_ctx_train);
-
         if(mt_p.n_ctx == 0)
         {
             // Use model's context length.
+
+            int32_t const model_n_ctx_train = llama_model_n_ctx_train(&model);
+            assert(0 < model_n_ctx_train);
+            
             ret_val.n_ctx = static_cast<uint32_t>(model_n_ctx_train);
         }
         else
         {
             // Use given context length.
             ret_val.n_ctx = mt_p.n_ctx;
-
-            if(ret_val.n_ctx < static_cast<uint32_t>(model_n_ctx_train))
-            {
-                MT_LOG(
-                    "Warning: Wanted/used ctx. size of %d tokens is less than the model's train. ctx. size of %d tokens.",
-                    static_cast<int>(ret_val.n_ctx),
-                    static_cast<int>(model_n_ctx_train));
-            }
         }
         // Assuming that these maximum batch sizes are OK for the hardware..
         ret_val.n_batch = ret_val.n_ctx; // Logical max. batch size.

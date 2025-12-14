@@ -1405,20 +1405,28 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_reinit(
             n_ctx_ctx = static_cast<int32_t>(
                 llama_n_ctx(s_slots[slot_index]->ctx)); // Bold cast?
 
-        // Interpreted as error here, by definition:
-        //
         assert(
             s_slots[slot_index]->mt_p->n_ctx == 0
                 || static_cast<int32_t>(s_slots[slot_index]->mt_p->n_ctx)
                     == n_ctx_ctx);
         if(n_ctx_train < n_ctx_ctx)
         {
-            MT_LOG_ERR(
-                "Model was trained on %d tokens (wanted %d tokens)!\n",
+            // For non-embedding, interpreted as error here (by definition):
+            if(s_slots[slot_index]->mt_p->embeddings == 0)
+            {
+                MT_LOG_ERR(
+                    "Model was trained on %d tokens (wanted %d tokens)!\n",
+                    n_ctx_train,
+                    n_ctx_ctx);
+                mt_llm_deinit(slot_index);
+                return false;
+            }
+
+            // For embedding, just issue a warning:
+            MT_LOG(
+                "Warning: Model was trained on %d tokens (wanted %d tokens)!\n",
                 n_ctx_train,
                 n_ctx_ctx);
-            mt_llm_deinit(slot_index);
-            return false;
         }
     }
 
