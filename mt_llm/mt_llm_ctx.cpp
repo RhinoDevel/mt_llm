@@ -56,7 +56,7 @@ static llama_context_params get_ctx_params(
         }
         else
         {
-            if(mt_p.n_ctx < model_n_ctx_train)
+            if(mt_p.n_ctx < static_cast<uint32_t>(model_n_ctx_train))
             {
                 // Use model's context length (it is the minimum).
 
