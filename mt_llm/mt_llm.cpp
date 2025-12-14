@@ -1050,7 +1050,7 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_create_embeddings(
     assert( // See mt_llm_ctx_create().
         pooling_type == LLAMA_POOLING_TYPE_CLS
             || pooling_type == LLAMA_POOLING_TYPE_MEAN
-            || pooling_type == LLAMA_POOLING_TYPE_CLS);
+            || pooling_type == LLAMA_POOLING_TYPE_LAST);
 
     uint32_t const n_ctx = llama_n_ctx(s_slots[slot_index]->ctx);
 
@@ -1139,7 +1139,8 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_create_embeddings(
             { 0 }, // Single sequence with ID 0.
 
             // It seems to be expected/necessary to request embeddings for ALL
-            // tokens, not just the last one:
+            // tokens, not just the last one (because of NON-causal model
+            // support?):
             true);
     }
 
