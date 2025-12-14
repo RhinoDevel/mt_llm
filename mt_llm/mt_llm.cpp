@@ -1424,7 +1424,7 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_reinit(
 
             // For embedding, just issue a warning:
             MT_LOG(
-                "Warning: Model was trained on %d tokens (wanted %d tokens)!\n",
+                "Warning: Model was trained on %d tokens (using %d tokens).\n",
                 n_ctx_train,
                 n_ctx_ctx);
         }
