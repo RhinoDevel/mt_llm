@@ -10,6 +10,9 @@
     #include <stdint.h>
 #endif //__cplusplus
 
+/**
+ * - This should/must be compatible with (pure-)C.
+ */
 struct mt_llm_state
 {
     int last_tok_type; // 0
