@@ -107,6 +107,6 @@ void mt_llm_p_free(struct mt_llm_p * const mt_p);
  */
 struct mt_llm_p * mt_llm_p_create_copy(struct mt_llm_p const & mt_p);
 
-#endif //__cplusplus/*MT_EXPORT_LLM*/
+#endif //__cplusplus
 
 #endif //MT_LLM_P
