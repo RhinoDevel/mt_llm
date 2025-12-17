@@ -37,6 +37,8 @@ MT_EXPORT_LLM_API int __stdcall mt_llm_get_token_count(
 /**
  * - Slot index may be 0 or 1.
  * - Caller takes ownership of return value.
+ *   mt_llm_state.state and the mt_llm_state object itself can be freed via
+ *   mt_llm_free() each.
  * - Returns nullptr and does nothing, if invalid slot index given.
  * - Returns nullptr and does nothing, if not initialized.
  * - Returns nullptr, if dumping to memory failed (e.g. out of space).
