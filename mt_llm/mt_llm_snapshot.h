@@ -22,6 +22,12 @@ MT_EXPORT_LLM_API void __stdcall mt_llm_snapshot_clear(int const slot_index);
 MT_EXPORT_LLM_API bool __stdcall mt_llm_snapshot_update(int const slot_index);
 MT_EXPORT_LLM_API bool __stdcall mt_llm_snapshot_restore(int const slot_index);
 
+MT_EXPORT_LLM_API bool __stdcall mt_llm_snapshot_to_file(
+	int const slot_index, char const * const abs_file_path);
+
+MT_EXPORT_LLM_API bool __stdcall mt_llm_snapshot_from_file(
+	char const * const abs_file_path, int const slot_index);
+
 #ifdef __cplusplus
 }
 #endif //__cplusplus
