@@ -24,6 +24,8 @@ static llama_context_params get_ctx_params(
 
     ret_val.n_seq_max = 1; // Max. number of sequences.
 
+    ret_val.flash_attn_type = LLAMA_FLASH_ATTN_TYPE_DISABLED;
+
     if(mt_p.embeddings == 0)
     {
         ret_val.n_ctx = mt_p.n_ctx;
