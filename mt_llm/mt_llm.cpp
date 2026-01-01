@@ -1015,7 +1015,7 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_create_embeddings(
     assert(out_count != nullptr);
 
     if(prompt == nullptr
-        || (strnlen_s(prompt, 65535) == 65535)) // <- Hard-coded limit.
+        || (strnlen(prompt, 65535) == 65535)) // <- Hard-coded limit.
     {
         MT_LOG_ERR("Prompt is not given or it is no or a too long C-string!\n");
         return nullptr;
