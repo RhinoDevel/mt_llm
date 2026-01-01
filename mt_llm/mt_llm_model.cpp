@@ -282,6 +282,7 @@ static char const * const s_model_names_gemma[] = {
     "Gemma-3-4B-It",
     "Gemma 3 12b It",
     "Gemma-3-12B-It",
+    "Gemma-3-27B-It",
     // Add more, when necessary.
     NULL // <- DON'T FORGET THIS TERMINATING NULL ENTRY!
 };
