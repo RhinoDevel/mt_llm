@@ -1218,7 +1218,10 @@ MT_EXPORT_LLM_API void __stdcall mt_llm_reset(
         strncpy(
             s_slots[slot_index]->mt_p->sys_prompt,
             sys_prompt,
-            MT_LLM_P_LEN_SYS_PROMPT);
+            MT_LLM_P_LEN_SYS_PROMPT - 1);
+        s_slots[slot_index]->mt_p->sys_prompt[MT_LLM_P_LEN_SYS_PROMPT - 1] =
+            '\0';
+
 
         MT_LOG(
             "sys_prompt" ": " "\"%s\"" "\n",

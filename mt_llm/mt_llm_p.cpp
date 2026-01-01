@@ -83,50 +83,61 @@ struct mt_llm_p * mt_llm_p_create_copy(struct mt_llm_p const & mt_p)
     strncpy(
         copy->grammar,
         mt_p.grammar,
-        MT_LLM_P_LEN_GRAMMAR);
+        MT_LLM_P_LEN_GRAMMAR - 1);
+    copy->grammar[MT_LLM_P_LEN_GRAMMAR - 1] = '\0';
 
     copy->cpu_moe = mt_p.cpu_moe;
 
     strncpy(
         copy->model_file_path,
         mt_p.model_file_path,
-        MT_LLM_P_LEN_MODEL_FILE_PATH);
+        MT_LLM_P_LEN_MODEL_FILE_PATH - 1);
+    copy->model_file_path[MT_LLM_P_LEN_MODEL_FILE_PATH - 1] = '\0';
     strncpy(
         copy->prompt_beg_delim,
         mt_p.prompt_beg_delim,
-        MT_LLM_P_LEN_PROMPT_BEG_DELIM);
+        MT_LLM_P_LEN_PROMPT_BEG_DELIM - 1);
+    copy->prompt_beg_delim[MT_LLM_P_LEN_PROMPT_BEG_DELIM - 1] = '\0';
     strncpy(
         copy->prompt_end_delim,
         mt_p.prompt_end_delim,
-        MT_LLM_P_LEN_PROMPT_END_DELIM);
+        MT_LLM_P_LEN_PROMPT_END_DELIM - 1);
+    copy->prompt_end_delim[MT_LLM_P_LEN_PROMPT_END_DELIM - 1] = '\0';
     strncpy(
         copy->sys_prompt_beg_delim,
         mt_p.sys_prompt_beg_delim,
-        MT_LLM_P_LEN_SYS_PROMPT_BEG_DELIM);
+        MT_LLM_P_LEN_SYS_PROMPT_BEG_DELIM - 1);
+    copy->sys_prompt_beg_delim[MT_LLM_P_LEN_SYS_PROMPT_BEG_DELIM - 1] = '\0';
     strncpy(
         copy->sys_prompt_mid_delim,
         mt_p.sys_prompt_mid_delim,
-        MT_LLM_P_LEN_SYS_PROMPT_MID_DELIM);
+        MT_LLM_P_LEN_SYS_PROMPT_MID_DELIM - 1);
+    copy->sys_prompt_mid_delim[MT_LLM_P_LEN_SYS_PROMPT_MID_DELIM - 1] = '\0';
     strncpy(
         copy->sys_prompt_end_delim,
         mt_p.sys_prompt_end_delim,
-        MT_LLM_P_LEN_SYS_PROMPT_END_DELIM);
+        MT_LLM_P_LEN_SYS_PROMPT_END_DELIM - 1);
+    copy->sys_prompt_end_delim[MT_LLM_P_LEN_SYS_PROMPT_END_DELIM - 1] = '\0';
     strncpy(
         copy->sys_prompt,
         mt_p.sys_prompt,
-        MT_LLM_P_LEN_SYS_PROMPT);
+        MT_LLM_P_LEN_SYS_PROMPT - 1);
+    copy->sys_prompt[MT_LLM_P_LEN_SYS_PROMPT - 1] = '\0';
     strncpy(
         copy->rev_prompt,
         mt_p.rev_prompt,
-        MT_LLM_P_LEN_REV_PROMPT);
+        MT_LLM_P_LEN_REV_PROMPT - 1);
+    copy->rev_prompt[MT_LLM_P_LEN_REV_PROMPT - 1] = '\0';
     strncpy(
         copy->think_beg_delim,
         mt_p.think_beg_delim,
-        MT_LLM_P_LEN_THINK_BEG_DELIM);
+        MT_LLM_P_LEN_THINK_BEG_DELIM - 1);
+    copy->think_beg_delim[MT_LLM_P_LEN_THINK_BEG_DELIM - 1] = '\0';
     strncpy(
         copy->think_end_delim,
         mt_p.think_end_delim,
-        MT_LLM_P_LEN_THINK_END_DELIM);
+        MT_LLM_P_LEN_THINK_END_DELIM - 1);
+    copy->think_end_delim[MT_LLM_P_LEN_THINK_END_DELIM - 1] = '\0';
 
     copy->try_prompts_by_model = mt_p.try_prompts_by_model;
 
