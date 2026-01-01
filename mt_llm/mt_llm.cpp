@@ -1043,14 +1043,13 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_create_embeddings(
     assert(s_slots[slot_index]->ctx != nullptr);
     //assert(s_slots[slot_index]->sampler != nullptr); // Does not matter.
 
-    enum llama_pooling_type const pooling_type =
-        llama_pooling_type(s_slots[slot_index]->ctx);
-
     // No support for other pooling types (e.g. for a reranking model), here:
     assert( // See mt_llm_ctx_create().
-        pooling_type == LLAMA_POOLING_TYPE_CLS
-            || pooling_type == LLAMA_POOLING_TYPE_MEAN
-            || pooling_type == LLAMA_POOLING_TYPE_LAST);
+        llama_pooling_type(s_slots[slot_index]->ctx) == LLAMA_POOLING_TYPE_CLS
+            || llama_pooling_type(s_slots[slot_index]->ctx)
+                == LLAMA_POOLING_TYPE_MEAN
+            || llama_pooling_type(s_slots[slot_index]->ctx)
+                == LLAMA_POOLING_TYPE_LAST);
 
     uint32_t const n_ctx = llama_n_ctx(s_slots[slot_index]->ctx);
 
@@ -1124,7 +1123,7 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_create_embeddings(
 
         1); // Single sequence.
 
-    for(int i = 0; i < inp.size(); ++i)
+    for(int i = 0; i < static_cast<int>(inp.size()); ++i)
     {
         common_batch_add(
             batch,
