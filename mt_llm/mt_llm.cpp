@@ -1283,7 +1283,7 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_reinit(
 
     init_common_if_necessary();
 
-    if(s_slots != nullptr)
+    if(s_slots[slot_index] != nullptr)
     {
         mt_llm_deinit(slot_index);
     }
