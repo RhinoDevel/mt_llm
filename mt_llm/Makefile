@@ -13,7 +13,7 @@ LLAMA_LIBS = -lggml-base -lggml-cpu -lggml -lllama -lcommon
 #
 #LLAMA_LIBS = -lggml-base -lggml-cpu -lggml-cuda -lggml -lllama -lcommon
 
-LLAMA_INCLUDES = -I$(LLAMA_DIR)/include -I$(LLAMA_DIR)/ggml/include -I$(LLAMA_DIR)/common -I$(LLAMA_DIR)/src
+LLAMA_INCLUDES = -I$(LLAMA_DIR)/include -I$(LLAMA_DIR)/ggml/include -I$(LLAMA_DIR)/common -I$(LLAMA_DIR)/src -I$(LLAMA_DIR)/vendor
 
 SRC = $(filter-out llama.cpp,$(wildcard *.cpp))
 OBJ = $(SRC:.cpp=.o)
