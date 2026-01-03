@@ -459,6 +459,7 @@ static const struct prompt_template s_granite4 = // <- Add this to "the" array.
         "",
         "");
 
+// TODO: Adds some white-space which may be wrong (e.g. after BOS <s>..).
 static char const * const s_model_names_ernie45moe[] = {
     "Ernie-4.5-21B-A3B-Pt",
     // Add more, when necessary.
