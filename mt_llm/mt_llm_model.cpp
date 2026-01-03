@@ -469,10 +469,13 @@ static const struct prompt_template s_ernie45moe = { // <- Add this to "the" arr
 
     .sys_prompt_beg_delim = "",
     .sys_prompt_mid_delim = "\nUser: ",
-    .sys_prompt_end_delim = "\nAssistant: ",
+    .sys_prompt_end_delim = "\nAssistant: ",// Model adds EOS ("</s>") at end.
 
-    .prompt_beg_delim = "<s>User: ",
-    .prompt_end_delim = "\nAssistant: ",
+    // Ignoring the use of CLS and SEP tokens as it should be done, if you would
+    // follow the Jinja template, also see:
+    // https://github.com/ggml-org/llama.cpp/pull/14658#issuecomment-3082745420
+    .prompt_beg_delim = "<s>User: ", // <- Hard-coded BOS token.
+    .prompt_end_delim = "\nAssistant: ", // Model adds EOS ("</s>") at the end.
 
     .rev_prompt = "",
 
