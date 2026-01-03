@@ -459,6 +459,29 @@ static const struct prompt_template s_granite4 = // <- Add this to "the" array.
         "",
         "");
 
+static char const * const s_model_names_ernie45moe[] = {
+    "Ernie-4.5-21B-A3B-Pt",
+    // Add more, when necessary.
+    NULL // <- DON'T FORGET THIS TERMINATING NULL ENTRY!
+};
+static const struct prompt_template s_ernie45moe = { // <- Add this to "the" array.
+    .model_names = s_model_names_ernie45moe,
+
+    .sys_prompt_beg_delim = "",
+    .sys_prompt_mid_delim = "\nUser: ",
+    .sys_prompt_end_delim = "\nAssistant: ",
+
+    .prompt_beg_delim = "<s>User: ",
+    .prompt_end_delim = "\nAssistant: ",
+
+    .rev_prompt = "",
+
+    .think_beg_delim = "",
+    .think_end_delim = "",
+
+    .n_sys_keep = -1 // Not supported (use create macro, if wanted).
+};
+
 // *****************************************************************************
 
 static struct prompt_template const * const s_prompt_templates[] = {
@@ -475,6 +498,7 @@ static struct prompt_template const * const s_prompt_templates[] = {
     &s_mistral7b_v0_2,
     &s_olmo,
     &s_granite4,
+    &s_ernie45moe,
     // Add more, when necessary.
     NULL // <- DON'T FORGET THIS TERMINATING NULL ENTRY!
 };
