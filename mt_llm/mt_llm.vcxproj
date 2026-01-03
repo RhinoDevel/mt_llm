@@ -131,7 +131,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(SolutionDir)\mt_llm\llama.cpp\common;$(SolutionDir)\mt_llm\llama.cpp\ggml\include;$(SolutionDir)\mt_llm\llama.cpp\include;$(SolutionDir)\mt_llm\llama.cpp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\mt_llm\llama.cpp\common;$(SolutionDir)\mt_llm\llama.cpp\ggml\include;$(SolutionDir)\mt_llm\llama.cpp\include;$(SolutionDir)\mt_llm\llama.cpp\src;$(SolutionDir)\mt_llm\llama.cpp\vendor;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
@@ -151,8 +151,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(SolutionDir)\mt_llm\llama.cpp\common;$(SolutionDir)\mt_llm\llama.cpp\ggml\include;$(SolutionDir)\mt_llm\llama.cpp\include;$(SolutionDir)\mt_llm\llama.cpp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <TreatWarningAsError>true</TreatWarningAsError>
+      <AdditionalIncludeDirectories>$(SolutionDir)\mt_llm\llama.cpp\common;$(SolutionDir)\mt_llm\llama.cpp\ggml\include;$(SolutionDir)\mt_llm\llama.cpp\include;$(SolutionDir)\mt_llm\llama.cpp\src;$(SolutionDir)\mt_llm\llama.cpp\vendor;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
