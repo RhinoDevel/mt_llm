@@ -11,6 +11,7 @@
 #include "log.h"
 #include "common.h"
 #include "llama.h"
+#include "chat.h"
 
 #include "mt_llm.h"
 #include "mt_llm_p.h"
@@ -1437,6 +1438,30 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_reinit(
 
     s_slots[slot_index]->last_tok_type = 0;
     s_slots[slot_index]->tok_cnt = 0;
+
+    if(llama_model_chat_template(s_slots[slot_index]->model, nullptr)
+        != nullptr)
+    {
+        bool const use_jinja = true;
+        std::string chat_template; // Empty
+        std::map<std::string, std::string> template_kwargs; // Empty
+
+        common_chat_templates_ptr const chat_templates =
+            common_chat_templates_init(
+                s_slots[slot_index]->model, chat_template);
+
+        std::string const chat_format_example = common_chat_format_example(
+            chat_templates.get(), use_jinja, template_kwargs);
+
+        assert(use_jinja);
+        MT_LOG(
+            "Example using model's default chat template (using Jinja): \"%s\"\n",
+            chat_format_example.c_str());
+    }
+    else
+    {
+        MT_LOG("No default chat template found in model.\n");
+    }
 
     return true;
 }
