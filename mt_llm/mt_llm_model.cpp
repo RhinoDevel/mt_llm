@@ -274,9 +274,13 @@ static const struct prompt_template s_qwen3 = // <- Add this to "the" array.
         "<think>",
         "</think>");
 
-// Note: "<think>" and "</think>" in prompt endings are not recognized as
+// TODO: "<think>" and "</think>" in prompt endings are not recognized as
 //       sampled thinking mode delimiters, but this is OK, because they are not
 //       sampled.
+// 
+//       Unfortunately, if thinking/reasoning is enabled, the actually
+//       sampled reasoning-text is also NOT detected as sampled thinking tokens!
+// 
 // HARD-CODED: Reasoning/thinking is disabled.
 //             Enable it by replacing "<think></think>\n" with "<think>\n".
 static char const * const s_model_names_nemo3nano[] = {
