@@ -274,6 +274,31 @@ static const struct prompt_template s_qwen3 = // <- Add this to "the" array.
         "<think>",
         "</think>");
 
+// Note: "<think>" and "</think>" in prompt endings are not recognized as
+//       sampled thinking mode delimiters, but this is OK, because they are not
+//       sampled.
+// HARD-CODED: Reasoning/thinking is disabled.
+//             Enable it by replacing "<think></think>\n" with "<think>\n".
+static char const * const s_model_names_nemo3nano[] = {
+    "Nemotron-3-Nano-30B-A3B",
+    // Add more, when necessary.
+    NULL // <- DON'T FORGET THIS TERMINATING NULL ENTRY!
+};
+// This is what they call "ChatML", with additional "<think></think>\n" or
+// "<think>\n" to disable or "jumpstart" assistant's thinking process.
+// Source: https://unsloth.ai/docs/models/nemotron-3
+static const struct prompt_template s_nemo3nano = // <- Add this to "the" array.
+    MT_LLM_MODEL_CREATE(
+        s_model_names_nemo3nano,
+        "<|im_start|>",
+        "system\n",
+        "user\n",
+        "assistant" "\n" "<think>" "</think>" "\n", // <- See comment above.
+        "<|im_end|>\n",
+        "",
+        "<think>",
+        "</think>");
+
 static char const * const s_model_names_gemma[] = {
     "Gemma-3-270M-It",
     "Gemma 2 2b It",
@@ -496,6 +521,7 @@ static struct prompt_template const * const s_prompt_templates[] = {
     &s_llama3,
     &s_qwen,
     &s_qwen3,
+    &s_nemo3nano,
     &s_gemma,
     &s_exaone3,
     &s_cohere4ai,
