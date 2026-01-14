@@ -50,7 +50,7 @@ MT_EXPORT_LLM_API bool mt_llm_snapshot_restore(int const slot_index)
 
 	if(s_snapshots[slot_index] == nullptr)
 	{
-		MT_LOG_ERR("No snapshot was taken!");
+		MT_LOG_ERR("No snapshot was taken!\n");
 		return false;
 	}
 

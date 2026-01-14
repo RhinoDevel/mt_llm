@@ -248,7 +248,7 @@ static bool decode_sys_prompt_end_delim(int const slot_index)
         MT_TOK_TYPE_DELIM,
         slot_index))
     {
-        MT_LOG_ERR("Decoding system prompt end delimiter!");
+        MT_LOG_ERR("Decoding system prompt end delimiter!\n");
         return false;
     }
     return true;
@@ -272,7 +272,7 @@ static bool decode_initial_query(
             MT_TOK_TYPE_DELIM,
             slot_index))
     {
-        MT_LOG_ERR("Decoding system prompt begin delimiter!");
+        MT_LOG_ERR("Decoding system prompt begin delimiter!\n");
         return false;
     }
     if(!decode(
@@ -280,7 +280,7 @@ static bool decode_initial_query(
             MT_TOK_TYPE_SYS_PROMPT,
             slot_index))
     {
-        MT_LOG_ERR("Decoding system prompt!");
+        MT_LOG_ERR("Decoding system prompt!\n");
         return false;
     }
     if(!decode(
@@ -288,7 +288,7 @@ static bool decode_initial_query(
             MT_TOK_TYPE_DELIM,
             slot_index))
     {
-        MT_LOG_ERR("Decoding system prompt middle delimiter!");
+        MT_LOG_ERR("Decoding system prompt middle delimiter!\n");
         return false;
     }
     if(!decode(
@@ -296,7 +296,7 @@ static bool decode_initial_query(
             MT_TOK_TYPE_PROMPT,
             slot_index))
     {
-        MT_LOG_ERR("Decoding prompt!");
+        MT_LOG_ERR("Decoding prompt!\n");
         return false;
     }
 
@@ -337,7 +337,7 @@ static bool decode_prompt_and_sys_prompt_end_delim(
 
     if(!decode(prompt, MT_TOK_TYPE_PROMPT, slot_index))
     {
-        MT_LOG_ERR("Decoding prompt!");
+        MT_LOG_ERR("Decoding prompt!\n");
         return false;
     }
     if(!decode_sys_prompt_end_delim(slot_index))
@@ -362,12 +362,12 @@ static bool decode_follow_up_query(
             MT_TOK_TYPE_DELIM,
             slot_index))
     {
-        MT_LOG_ERR("Decoding prompt begin delimiter!");
+        MT_LOG_ERR("Decoding prompt begin delimiter!\n");
         return false;
     }
     if(!decode(prompt, MT_TOK_TYPE_PROMPT, slot_index))
     {
-        MT_LOG_ERR("Decoding prompt!");
+        MT_LOG_ERR("Decoding prompt!\n");
         return false;
     }
     if(!decode(
@@ -375,7 +375,7 @@ static bool decode_follow_up_query(
             MT_TOK_TYPE_DELIM,
             slot_index))
     {
-        MT_LOG_ERR("Decoding prompt end delimiter!");
+        MT_LOG_ERR("Decoding prompt end delimiter!\n");
         return false;
     }
     return true;
@@ -1304,7 +1304,7 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_reinit(
         malloc(sizeof *s_slots[slot_index]));
     if(s_slots[slot_index] == nullptr)
     {
-        MT_LOG_ERR("Failed to allocate memory for settings!");
+        MT_LOG_ERR("Failed to allocate memory for settings!\n");
         //mt_llm_deinit(slot_index);
         return false;
     }
