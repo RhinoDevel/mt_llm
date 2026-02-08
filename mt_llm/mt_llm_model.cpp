@@ -215,6 +215,7 @@ static char const * const s_model_names_qwen[] = {
     "Qwen2.5 3B Instruct",
     "Qwen2.5 7B Instruct",
     "Qwen3-4B-Instruct-2507",
+    "Qwen3-Vl-8B-Instruct",
     "Qwen3-30B-A3B-Instruct-2507",
     "Qwen3-Next-80B-A3B-Instruct",
     "Virtuoso Small v2", // From Arcee AI, based on Qwen2.5 14B.
