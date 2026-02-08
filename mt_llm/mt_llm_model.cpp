@@ -522,6 +522,7 @@ static const struct prompt_template s_ernie45moe = { // <- Add this to "the" arr
 
 static char const * const s_model_names_glm[] = {
     "Glm-4.7-Flash",
+    "cerebras/GLM-4.7-Flash-REAP-23B-A3B",
     // Add more, when necessary.
     NULL // <- DON'T FORGET THIS TERMINATING NULL ENTRY!
 };
