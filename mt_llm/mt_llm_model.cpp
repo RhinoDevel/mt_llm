@@ -393,6 +393,7 @@ static const struct prompt_template s_cohere4ai = // <- Add this to "the" array.
 static char const * const s_model_names_mistral[] = { // V7-Tekken
     "Mistral Small 24B Instruct 2501",
     "Mistral-Small-3.2-24B-Instruct-2506",
+    "Ministral-3-8B-Instruct-2512",
     // Add more, when necessary.
     NULL // <- DON'T FORGET THIS TERMINATING NULL ENTRY!
 };
