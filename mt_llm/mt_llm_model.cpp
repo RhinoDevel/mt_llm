@@ -283,27 +283,37 @@ static const struct prompt_template s_qwen3 = // <- Add this to "the" array.
 //       Unfortunately, if thinking/reasoning is enabled, the actually
 //       sampled reasoning-text is also NOT detected as sampled thinking tokens!
 // 
-// HARD-CODED: Reasoning/thinking is disabled.
-//             Enable it by replacing "<think></think>\n" with "<think>\n".
+// HARD-CODED: Reasoning/thinking is enabled.
+//             Disable it by replacing "<think>\n" with "<think></think>".
 static char const * const s_model_names_nemo3nano[] = {
     "Nemotron-3-Nano-30B-A3B",
     // Add more, when necessary.
     NULL // <- DON'T FORGET THIS TERMINATING NULL ENTRY!
 };
-// This is what they call "ChatML", with additional "<think></think>\n" or
-// "<think>\n" to disable or "jumpstart" assistant's thinking process.
+// This is what they call "ChatML", with additional "<think></think>" to
+// disable or "<think>\n" to enable or "jumpstart" assistant's thinking process.
 // Source: https://unsloth.ai/docs/models/nemotron-3
-static const struct prompt_template s_nemo3nano = // <- Add this to "the" array.
-    MT_LLM_MODEL_CREATE(
-        s_model_names_nemo3nano,
-        "<|im_start|>",
-        "system\n",
-        "user\n",
-        "assistant" "\n" "<think>" "</think>" "\n", // <- See comment above.
-        "<|im_end|>\n",
-        "",
-        "<think>",
-        "</think>");
+static const struct prompt_template s_nemo3nano = { // <- Add this to "the" arr.
+    .model_names = s_model_names_nemo3nano,
+
+    .sys_prompt_beg_delim = "<|im_start|>" "system\n",
+    .sys_prompt_mid_delim = "<|im_end|>\n" "<|im_start|>" "user\n",
+
+    // Seems to be correct to disable thinking/reasoning for assistant's first
+    // answer.
+    .sys_prompt_end_delim =
+        "<|im_end|>\n" "<|im_start|>" "assistant\n" "<think></think>",
+
+    .prompt_beg_delim = "<|im_start|>" "user\n",
+    .prompt_end_delim = "<|im_end|>\n" "<|im_start|>" "assistant\n" "<think>\n",
+
+    .rev_prompt = "",
+
+    .think_beg_delim = "<think>",
+    .think_end_delim = "</think>",
+
+    .n_sys_keep = -1 // Not supported (use create macro, if wanted).
+};
 
 static char const * const s_model_names_gemma[] = {
     "Gemma-3-270M-It",
