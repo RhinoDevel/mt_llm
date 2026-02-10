@@ -577,13 +577,6 @@ static struct prompt_template const * const s_prompt_templates[] = {
 
 // *****************************************************************************
 
-// Only used by get_model_params() (and read-accessed externally):
-static struct llama_model_tensor_buft_override s_tensor_buft_overrides[2] =
-    {
-        { .pattern = NULL, .buft = NULL },
-        { .pattern = NULL, .buft = NULL }
-    };
-
 static bool is_space(char const c)
 {
     return std::isspace(static_cast<int>(static_cast<unsigned char>(c)));
@@ -701,7 +694,8 @@ static struct prompt_template const * try_get_prompt_template(
     assert(false); // Must never get here.
 }
 
-static llama_model_params get_model_params(mt_llm_p const & mt_p)
+static llama_model_params get_model_params_and_update_model(
+    mt_llm_p const & mt_p, mt_llm_model& model)
 {
     llama_model_params ret_val = llama_model_default_params();
 
@@ -715,16 +709,16 @@ static llama_model_params get_model_params(mt_llm_p const & mt_p)
 
         // Not sure, if this is the best way to do this:
 
-        s_tensor_buft_overrides[0] = llm_ffn_exps_cpu_override();
+        model.tensor_buft_overrides[0] = llm_ffn_exps_cpu_override();
     }
     else
     {
         // First entry will act as NULL-terminator:
 
-        s_tensor_buft_overrides[0].pattern = NULL;
-        s_tensor_buft_overrides[0].buft = NULL;
+        model.tensor_buft_overrides[0].pattern = NULL;
+        model.tensor_buft_overrides[0].buft = NULL;
     }
-    ret_val.tensor_buft_overrides = s_tensor_buft_overrides;
+    ret_val.tensor_buft_overrides = model.tensor_buft_overrides;
 
     return ret_val;
 }
@@ -866,7 +860,7 @@ mt_llm_model* mt_llm_model_create(mt_llm_p const & mt_p)
         return nullptr;
     }
     model->model = llama_model_load_from_file(
-        mt_p.model_file_path, get_model_params(mt_p));
+        mt_p.model_file_path, get_model_params_and_update_model(mt_p, *model));
     if(model->model == nullptr)
     {
         free(model);
