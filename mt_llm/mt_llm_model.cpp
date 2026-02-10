@@ -703,22 +703,18 @@ static llama_model_params get_model_params_and_update_model(
     //ret_val.use_mlock // Default: false.
     //ret_val.use_mmap // Default: true.
 
+    model.tensor_buft_overrides->clear(); // Necessary?
     if(mt_p.cpu_moe != 0)
     {
         // Keep all Mixture of Experts (MoE) weights in the CPU.
 
         // Not sure, if this is the best way to do this:
 
-        model.tensor_buft_overrides[0] = llm_ffn_exps_cpu_override();
+        model.tensor_buft_overrides->push_back(llm_ffn_exps_cpu_override());
     }
-    else
-    {
-        // First entry will act as NULL-terminator:
-
-        model.tensor_buft_overrides[0].pattern = NULL;
-        model.tensor_buft_overrides[0].buft = NULL;
-    }
-    ret_val.tensor_buft_overrides = model.tensor_buft_overrides;
+    model.tensor_buft_overrides->push_back(
+        { .pattern = nullptr, .buft = nullptr });
+    ret_val.tensor_buft_overrides = model.tensor_buft_overrides->data();
 
     return ret_val;
 }
@@ -848,6 +844,11 @@ void mt_llm_model_free(mt_llm_model * const model)
         llama_model_free(model->model);
         model->model = nullptr;
     }
+    if(model->tensor_buft_overrides != nullptr)
+    {
+        delete model->tensor_buft_overrides;
+        model->tensor_buft_overrides = nullptr;
+    }
     free(model);
 }
 
@@ -859,13 +860,23 @@ mt_llm_model* mt_llm_model_create(mt_llm_p const & mt_p)
     {
         return nullptr;
     }
+
+    model->tensor_buft_overrides = // Must be done BEFORE llama model init.
+        new std::vector<llama_model_tensor_buft_override>();
+    if(model->tensor_buft_overrides == nullptr)
+    {
+        // Can this happen?
+        mt_llm_model_free(model); // This works, here.
+        return nullptr;
+    }
+
     model->model = llama_model_load_from_file(
         mt_p.model_file_path, get_model_params_and_update_model(mt_p, *model));
     if(model->model == nullptr)
     {
-        free(model);
-        model = nullptr;
+        mt_llm_model_free(model); // This works, here.
         return nullptr;
     }
+
     return model;
 }

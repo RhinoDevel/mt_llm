@@ -12,12 +12,7 @@ struct mt_llm_model
 {
     // Unsure, if this is necessary, but this way, the nullptr-terminated array
     // is available during the whole lifetime of the model.
-    struct llama_model_tensor_buft_override tensor_buft_overrides[2] =
-    {
-        { .pattern = nullptr, .buft = nullptr },
-        { .pattern = nullptr, .buft = nullptr }
-    };
-
+    std::vector<llama_model_tensor_buft_override>* tensor_buft_overrides;
     struct llama_model * model;
 };
 
