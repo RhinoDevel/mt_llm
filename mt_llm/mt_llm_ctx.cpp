@@ -11,6 +11,7 @@
 #include "mt_llm_p.h"
 #include "mt_llm_ctx.h"
 #include "mt_llm_log.h"
+#include "mt_llm_model.h"
 
 static llama_context_params get_ctx_params(
     mt_llm_p const & mt_p, llama_model const & model)
@@ -304,7 +305,8 @@ int mt_llm_ctx_decode(
 }
 
 llama_context* mt_llm_ctx_create(
-    mt_llm_p const & mt_p, llama_model& model)
+    mt_llm_p const & mt_p, mt_llm_model const & model)
 {
-    return llama_init_from_model(&model, get_ctx_params(mt_p, model));
+    return llama_init_from_model(
+        model.model, get_ctx_params(mt_p, *model.model));
 }

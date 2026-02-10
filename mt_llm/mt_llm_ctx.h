@@ -8,6 +8,7 @@
 #include "llama.h"
 
 #include "mt_llm_p.h"
+#include "mt_llm_model.h"
 
 std::vector<int> mt_llm_ctx_tokenize(
     llama_context const & ctx, char const * const str, bool const add_special);
@@ -49,6 +50,6 @@ int mt_llm_ctx_decode(
  *  - Use llama_free() to de-initialize.
  */
 llama_context* mt_llm_ctx_create(
-    mt_llm_p const & mt_p, llama_model& model);
+    mt_llm_p const & mt_p, mt_llm_model const & model);
 
 #endif //MT_LLM_CTX

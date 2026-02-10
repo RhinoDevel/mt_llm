@@ -8,12 +8,17 @@
 
 #include "mt_llm_p.h"
 
+struct mt_llm_model
+{
+    struct llama_model * model;
+};
+
 /** Returns a vector with one entry for each digit (the numbers from 0 to 9),
  *  where each of these entries is a vector itself holding all token IDs that
  *  may represent that digit (e.g. " 2", "\n2" and "2").
  */
 std::vector<std::vector<int>> mt_llm_model_get_digit_tokens(
-    struct llama_model const & model);
+    mt_llm_model const & model);
 
 /**
  * - Returns true, if given model('s name) is supported and given parameters
@@ -21,14 +26,19 @@ std::vector<std::vector<int>> mt_llm_model_get_digit_tokens(
  *   Returns false, if not supported and nothing was changed.
  */
 bool mt_llm_model_try_set_prompts(
-    struct llama_model const & model, struct mt_llm_p & p);
+    mt_llm_model const & model, struct mt_llm_p & p);
+
+/**
+ * - Does nothing, if nullptr is given.
+ */
+void mt_llm_model_free(mt_llm_model * const model);
 
 /** Initialize model.
  * 
  *  - Caller takes ownership of returned object.
  *  - llama_backend_init() must have already been called. 
- *  - De-initialize model object with llama_free_model(), later.
+ *  - De-initialize model object with mt_llm_model_free(), later.
  */
-llama_model* mt_llm_model_create(mt_llm_p const & mt_p);
+mt_llm_model * mt_llm_model_create(mt_llm_p const & mt_p);
 
 #endif //MT_LLM_MODEL

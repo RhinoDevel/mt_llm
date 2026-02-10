@@ -125,7 +125,7 @@ static std::vector<float> get_last_logits(float& max, int const slot_index)
     }
 
     int32_t const n_vocab = llama_vocab_n_tokens(
-        llama_model_get_vocab(s_slots[slot_index]->model));
+        llama_model_get_vocab(s_slots[slot_index]->model->model));
 
     assert(0 < n_vocab);
 
@@ -572,7 +572,7 @@ static bool inference(int const slot_index)
     int const rev_prompt_len = static_cast<int>(
             strlen(s_slots[slot_index]->mt_p->rev_prompt));
     llama_vocab const * const vocab =
-        llama_model_get_vocab(s_slots[slot_index]->model);
+        llama_model_get_vocab(s_slots[slot_index]->model->model);
 
     std::vector<float> dig_probs;
 
@@ -1249,7 +1249,7 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_create_embeddings(
     }
 
     const llama_vocab * const vocab = llama_model_get_vocab(
-        s_slots[slot_index]->model);
+        s_slots[slot_index]->model->model);
 
     if(inp.back() != llama_vocab_sep(vocab)
         && inp.back() != llama_vocab_eos(vocab))
@@ -1337,7 +1337,7 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_create_embeddings(
     // *** Create (Euclidean) normalized copy of the embedding vector:       ***
     // *************************************************************************
 
-    int const n_embd = llama_model_n_embd(s_slots[slot_index]->model);
+    int const n_embd = llama_model_n_embd(s_slots[slot_index]->model->model);
 
     assert(0 < n_embd);
 
@@ -1431,7 +1431,7 @@ MT_EXPORT_LLM_API void __stdcall mt_llm_deinit(int const slot_index)
     }
     if(s_slots[slot_index]->model != nullptr)
     {
-        llama_model_free(s_slots[slot_index]->model);
+        mt_llm_model_free(s_slots[slot_index]->model);
         s_slots[slot_index]->model = nullptr;
     }
 
@@ -1524,7 +1524,7 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_reinit(
     // Initialize the sampling (unnecessary for embeddings creation):
     //
     s_slots[slot_index]->sampler = create_sampler(
-        llama_model_get_vocab(s_slots[slot_index]->model), slot_index);
+        llama_model_get_vocab(s_slots[slot_index]->model->model), slot_index);
     if(s_slots[slot_index]->sampler == nullptr)
     {
         MT_LOG_ERR("Unable to create sampler!\n");
@@ -1536,7 +1536,7 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_reinit(
     // currently not implemented (although for embeddings, models with encoder
     // AND decoder are not supported):
     //
-    if(llama_model_has_encoder(s_slots[slot_index]->model))
+    if(llama_model_has_encoder(s_slots[slot_index]->model->model))
     {
         MT_LOG_ERR("Model has an encoder, that is currently not supported!\n");
         mt_llm_deinit(slot_index);
@@ -1575,7 +1575,7 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_reinit(
 
     {
         int32_t const n_ctx_train = llama_model_n_ctx_train(
-                    s_slots[slot_index]->model),
+                    s_slots[slot_index]->model->model),
             n_ctx_ctx = static_cast<int32_t>(
                 llama_n_ctx(s_slots[slot_index]->ctx)); // Bold cast?
 
@@ -1610,7 +1610,7 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_reinit(
     s_slots[slot_index]->last_tok_type = 0;
     s_slots[slot_index]->tok_cnt = 0;
 
-    if(llama_model_chat_template(s_slots[slot_index]->model, nullptr)
+    if(llama_model_chat_template(s_slots[slot_index]->model->model, nullptr)
         != nullptr)
     {
         bool const use_jinja = true;
@@ -1619,7 +1619,7 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_reinit(
 
         common_chat_templates_ptr const chat_templates =
             common_chat_templates_init(
-                s_slots[slot_index]->model, chat_template);
+                s_slots[slot_index]->model->model, chat_template);
 
         std::string const chat_format_example = common_chat_format_example(
             chat_templates.get(), use_jinja, template_kwargs);

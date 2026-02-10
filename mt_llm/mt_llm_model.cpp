@@ -770,9 +770,9 @@ static char* get_meta_val_str(llama_model const & model, char const * const key)
 }
 
 bool mt_llm_model_try_set_prompts(
-    struct llama_model const & model, struct mt_llm_p & p)
+    mt_llm_model const & model, struct mt_llm_p & p)
 {
-    char * const model_name = get_meta_val_str(model, MT_LLM_MODEL_NAME_KEY);
+    char * const model_name = get_meta_val_str(*model.model, MT_LLM_MODEL_NAME_KEY);
     struct prompt_template const * pt = nullptr;
 
     if(model_name == nullptr)
@@ -812,13 +812,13 @@ bool mt_llm_model_try_set_prompts(
 }
 
 std::vector<std::vector<int>> mt_llm_model_get_digit_tokens(
-    struct llama_model const & model)
+    mt_llm_model const & model)
 {
     std::vector<std::vector<int>> ret_val;
 
     ret_val.resize(10); // For the digits 0, 1, 2, 3, 4, 5, 6, 7, 8 and 9.
 
-    llama_vocab const * const vocab = llama_model_get_vocab(&model);
+    llama_vocab const * const vocab = llama_model_get_vocab(model.model);
     int32_t const n_vocab = llama_vocab_n_tokens(vocab);
 
     // Not performance-optimized, better switch loops:
@@ -842,8 +842,36 @@ std::vector<std::vector<int>> mt_llm_model_get_digit_tokens(
     return ret_val;
 }
 
-llama_model* mt_llm_model_create(mt_llm_p const & mt_p)
+void mt_llm_model_free(mt_llm_model * const model)
 {
-    return llama_model_load_from_file(
+    if(model == nullptr)
+    {
+        return; // Should not get here.
+    }
+    if(model->model != nullptr)
+    {
+        // Should not get here.
+        llama_model_free(model->model);
+        model->model = nullptr;
+    }
+    free(model);
+}
+
+mt_llm_model* mt_llm_model_create(mt_llm_p const & mt_p)
+{
+    mt_llm_model * model = static_cast<mt_llm_model*>(malloc(sizeof * model));
+
+    if(model == nullptr)
+    {
+        return nullptr;
+    }
+    model->model = llama_model_load_from_file(
         mt_p.model_file_path, get_model_params(mt_p));
+    if(model->model == nullptr)
+    {
+        free(model);
+        model = nullptr;
+        return nullptr;
+    }
+    return model;
 }
