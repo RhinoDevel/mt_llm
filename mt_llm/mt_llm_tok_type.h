@@ -34,8 +34,13 @@
 // Non-EOG control tokens.
 #define MT_TOK_TYPE_SAMPLED_CONTROL_NON_EOG 8
 
-// Sampled tokens that represent the thinking mode text or the begin or end
-// delimiter.
-#define MT_TOK_TYPE_SAMPLED_THINK 9
+// Token that represents the thinking begin delimiter.
+#define MT_TOK_TYPE_THINK_BEGIN 9
+
+// Tokens that represent the thinking mode text.
+#define MT_TOK_TYPE_THINK_TEXT 10
+
+// Token that represents the thinking end delimiter.
+#define MT_TOK_TYPE_THINK_END 11
 
 #endif //MT_LLM_TOK_TYPE

@@ -237,19 +237,85 @@ static bool decode(
 /**
  * - Just assumes that the context length is always long enough to hold the
  *   prompt to be decoded, here (no check..).
+ * 
+ * - Automatically detects optional "jumpstart" or disabling thinking/reasoning
+ *   tokens at the end of the system prompt end delimiter.
  */
 static bool decode_sys_prompt_end_delim(int const slot_index)
 {
     assert(slot_index == 0 || slot_index == 1);
     assert(s_slots[slot_index]->mt_p->sys_prompt[0] != '\0');
 
+    if(s_slots[slot_index]->mt_p->think_beg_delim[0] == '\0')
+    {
+        // Simple case, where there are no thinking/reasoning delimiters.
+        assert(s_slots[slot_index]->mt_p->think_end_delim[0] == '\0');
+
+        if(!decode(
+            s_slots[slot_index]->mt_p->sys_prompt_end_delim,
+            MT_TOK_TYPE_DELIM,
+            slot_index))
+        {
+            MT_LOG_ERR("Decoding system prompt end delimiter (1)!\n");
+            return false;
+        }
+        return true;
+    }
+    assert(s_slots[slot_index]->mt_p->think_end_delim[0] != '\0');
+    
+    std::string str_sys_prompt_end_delim =
+        s_slots[slot_index]->mt_p->sys_prompt_end_delim;
+    std::string const str_think_beg_delim =
+        s_slots[slot_index]->mt_p->think_beg_delim;
+    std::string const str_think_end_delim =
+        s_slots[slot_index]->mt_p->think_end_delim;
+
+    bool decode_think_end_delim = false;
+    bool decode_think_beg_delim = false;
+
+    if(string_ends_with(str_sys_prompt_end_delim, str_think_end_delim))
+    {
+        decode_think_end_delim = true;
+
+        string_remove_suffix(str_sys_prompt_end_delim, str_think_end_delim);
+    }
+
+    if(string_ends_with(str_sys_prompt_end_delim, str_think_beg_delim))
+    {
+        decode_think_beg_delim = true;
+
+        string_remove_suffix(str_sys_prompt_end_delim, str_think_beg_delim);
+    }
+
     if(!decode(
-        s_slots[slot_index]->mt_p->sys_prompt_end_delim,
+        str_sys_prompt_end_delim.c_str(),
         MT_TOK_TYPE_DELIM,
         slot_index))
     {
-        MT_LOG_ERR("Decoding system prompt end delimiter!\n");
+        MT_LOG_ERR("Decoding system prompt end delimiter (2)!\n");
         return false;
+    }
+    if(decode_think_beg_delim)
+    {
+        if(!decode(
+            s_slots[slot_index]->mt_p->think_beg_delim,
+            MT_TOK_TYPE_THINK_BEGIN,
+            slot_index))
+        {
+            MT_LOG_ERR("Decoding thinking prompt begin delimiter after system prompt!\n");
+            return false;
+        }
+    }
+    if(decode_think_end_delim)
+    {
+        if(!decode(
+            s_slots[slot_index]->mt_p->think_end_delim,
+            MT_TOK_TYPE_THINK_END,
+            slot_index))
+        {
+            MT_LOG_ERR("Decoding thinking prompt end delimiter after system prompt!\n");
+            return false;
+        }
     }
     return true;
 }
@@ -350,6 +416,9 @@ static bool decode_prompt_and_sys_prompt_end_delim(
 /**
  * - Just assumes that the context length is always long enough to hold the
  *   prompt to be decoded, here (no check..).
+ * 
+ * - Automatically detects optional "jumpstart" or disabling thinking/reasoning
+ *   tokens at the end of the prompt end delimiter.
  */
 static bool decode_follow_up_query(
     char const * const prompt, int const slot_index)
@@ -370,13 +439,97 @@ static bool decode_follow_up_query(
         MT_LOG_ERR("Decoding prompt!\n");
         return false;
     }
-    if(!decode(
+
+    if(s_slots[slot_index]->mt_p->think_beg_delim[0] == '\0')
+    {
+        // Simple case, where there are no thinking/reasoning delimiters.
+        assert(s_slots[slot_index]->mt_p->think_end_delim[0] == '\0');
+
+        if(!decode(
             s_slots[slot_index]->mt_p->prompt_end_delim,
             MT_TOK_TYPE_DELIM,
             slot_index))
+        {
+            MT_LOG_ERR("Decoding prompt end delimiter (1)!\n");
+            return false;
+        }
+        return true;
+    }
+    assert(s_slots[slot_index]->mt_p->think_end_delim[0] != '\0');
+
+    std::string str_prompt_end_delim =
+        s_slots[slot_index]->mt_p->prompt_end_delim;
+    std::string const str_newline = "\n";
+    std::string const str_think_beg_delim =
+        s_slots[slot_index]->mt_p->think_beg_delim;
+    std::string const str_think_end_delim =
+        s_slots[slot_index]->mt_p->think_end_delim;
+
+    bool decode_trailing_newline = false;
+    bool decode_think_end_delim = false;
+    bool decode_think_beg_delim = false;
+
+    if(string_ends_with(str_prompt_end_delim, str_newline))
     {
-        MT_LOG_ERR("Decoding prompt end delimiter!\n");
+        decode_trailing_newline = true;
+
+        string_remove_suffix(str_prompt_end_delim, str_newline);
+    }
+
+    if(string_ends_with(str_prompt_end_delim, str_think_end_delim))
+    {
+        decode_think_end_delim = true;
+
+        string_remove_suffix(str_prompt_end_delim, str_think_end_delim);
+    }
+
+    if(string_ends_with(str_prompt_end_delim, str_think_beg_delim))
+    {
+        decode_think_beg_delim = true;
+
+        string_remove_suffix(str_prompt_end_delim, str_think_beg_delim);
+    }
+
+    if(!decode(
+        str_prompt_end_delim.c_str(),
+        MT_TOK_TYPE_DELIM,
+        slot_index))
+    {
+        MT_LOG_ERR("Decoding prompt end delimiter (2)!\n");
         return false;
+    }
+    if(decode_think_beg_delim)
+    {
+        if(!decode(
+            s_slots[slot_index]->mt_p->think_beg_delim,
+            MT_TOK_TYPE_THINK_BEGIN,
+            slot_index))
+        {
+            MT_LOG_ERR("Decoding thinking prompt begin delimiter after prompt!\n");
+            return false;
+        }
+    }
+    if(decode_think_end_delim)
+    {
+        if(!decode(
+            s_slots[slot_index]->mt_p->think_end_delim,
+            MT_TOK_TYPE_THINK_END,
+            slot_index))
+        {
+            MT_LOG_ERR("Decoding thinking prompt end delimiter after prompt!\n");
+            return false;
+        }
+    }
+    if(decode_trailing_newline)
+    {
+        if(!decode(
+            str_newline.c_str(),
+            MT_TOK_TYPE_THINK_TEXT, // Belongs to the thinking mode text.
+            slot_index))
+        {
+            MT_LOG_ERR("Decoding prompt end delimiter's trailing newline!\n");
+            return false;
+        }
     }
     return true;
 }
@@ -398,7 +551,10 @@ static bool inference(int const slot_index)
         last_chars_index = -1;
 
     bool irq = false,
-        is_thinking = false,
+
+        is_thinking = // See decoding of system and "normal" prompt end delim.
+            s_slots[slot_index]->last_tok_type == MT_TOK_TYPE_THINK_BEGIN
+                || s_slots[slot_index]->last_tok_type == MT_TOK_TYPE_THINK_TEXT,
 
         // Set to true, if reverse prompt is given and the count of characters
         // of the reverse prompt was added to the last_chars "ring buffer".
@@ -478,6 +634,8 @@ static bool inference(int const slot_index)
 
     for(n_cur = first_new_tok_index; n_cur < n_ctx; ++n_cur)
     {
+        int is_think_tok_type = -1; // -1 == No thinking token type at all.
+
         // Break, if (optional) reverse prompt was sampled last:
         if(last_chars_filled)
         {
@@ -557,15 +715,31 @@ static bool inference(int const slot_index)
         std::string const piece = mt_llm_ctx_get_piece_from(
             *s_slots[slot_index]->ctx, new_tok_id);
 
-        if(is_thinker && !is_thinking)
+        if(is_thinker)
         {
+            assert(is_think_tok_type == -1);
+
             if(strncmp(
                 piece.c_str(),
                 s_slots[slot_index]->mt_p->think_beg_delim,
                 MT_LLM_P_LEN_THINK_BEG_DELIM) == 0)
             {
+                is_think_tok_type = MT_TOK_TYPE_THINK_BEGIN;
+
+                assert(!is_thinking);
                 is_thinking = true; // BEFORE calling callback.
             }
+            else
+            {
+                if(strncmp(
+                    piece.c_str(),
+                    s_slots[slot_index]->mt_p->think_end_delim,
+                    MT_LLM_P_LEN_THINK_END_DELIM) == 0)
+                {
+                    is_think_tok_type = MT_TOK_TYPE_THINK_END;
+                }
+            }
+
         }
         //
         // Otherwise: The model is not a thinker.
@@ -579,7 +753,9 @@ static bool inference(int const slot_index)
             if(llama_vocab_is_control(vocab, new_tok_id))
             {
                 s_slots[slot_index]->last_tok_type =
-                    MT_TOK_TYPE_SAMPLED_CONTROL_NON_EOG;
+                    is_think_tok_type == -1
+                        ? MT_TOK_TYPE_SAMPLED_CONTROL_NON_EOG // Something else.
+                        : is_think_tok_type; // Think begin or end delimiter.
             }
             else
             {
@@ -591,7 +767,7 @@ static bool inference(int const slot_index)
                 if(is_thinking)
                 {
                     s_slots[slot_index]->last_tok_type =
-                        MT_TOK_TYPE_SAMPLED_THINK;
+                        MT_TOK_TYPE_THINK_TEXT;
                 }
                 else
                 {
@@ -643,15 +819,10 @@ static bool inference(int const slot_index)
         s_active_slot_index = slot_index;
     	irq = callback_handler(new_tok_id, piece, dig_probs);
 
-        if(is_thinker && is_thinking)
+        if(is_thinker && is_think_tok_type == MT_TOK_TYPE_THINK_END)
         {
-            if(strncmp(
-                piece.c_str(),
-                s_slots[slot_index]->mt_p->think_end_delim,
-                MT_LLM_P_LEN_THINK_END_DELIM) == 0)
-            {
-                is_thinking = false; // AFTER calling callback.
-            }
+            assert(is_thinking);
+            is_thinking = false; // AFTER calling callback.
         }
         //
         // Otherwise: The model is not a thinker.

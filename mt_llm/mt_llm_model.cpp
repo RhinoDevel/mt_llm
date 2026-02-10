@@ -276,15 +276,9 @@ static const struct prompt_template s_qwen3 = // <- Add this to "the" array.
         "<think>",
         "</think>");
 
-// TODO: "<think>" and "</think>" in prompt endings are not recognized as
-//       sampled thinking mode delimiters, but this is OK, because they are not
-//       sampled.
-// 
-//       Unfortunately, if thinking/reasoning is enabled, the actually
-//       sampled reasoning-text is also NOT detected as sampled thinking tokens!
-// 
 // HARD-CODED: Reasoning/thinking is enabled.
 //             Disable it by replacing "<think>\n" with "<think></think>".
+//             Adding a newline after "<think>" seems to be correct.
 static char const * const s_model_names_nemo3nano[] = {
     "Nemotron-3-Nano-30B-A3B",
     // Add more, when necessary.
@@ -292,7 +286,7 @@ static char const * const s_model_names_nemo3nano[] = {
 };
 // This is what they call "ChatML", with additional "<think></think>" to
 // disable or "<think>\n" to enable or "jumpstart" assistant's thinking process.
-// Source: https://unsloth.ai/docs/models/nemotron-3
+// Source: https://unsloth.ai/docs/models/tutorials/nemotron-3
 static const struct prompt_template s_nemo3nano = { // <- Add this to "the" arr.
     .model_names = s_model_names_nemo3nano,
 
