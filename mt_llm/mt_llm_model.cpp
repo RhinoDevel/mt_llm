@@ -524,29 +524,30 @@ static const struct prompt_template s_ernie45moe = { // <- Add this to "the" arr
     .n_sys_keep = -1 // Not supported (use create macro, if wanted).
 };
 
-// "[gMASK]<sop><|system|>You are a helpful assistant<|user|>Hello<|assistant|></think>Hi there<|user|>How are you?<|assistant|><think>"
-
+// HARD-CODED: Reasoning/thinking is enabled.
 static char const * const s_model_names_glm[] = {
     "Glm-4.7-Flash",
     "cerebras/GLM-4.7-Flash-REAP-23B-A3B",
     // Add more, when necessary.
     NULL // <- DON'T FORGET THIS TERMINATING NULL ENTRY!
 };
-
 static const struct prompt_template s_glm = { // <- Add this to "the" array.
     .model_names = s_model_names_glm,
 
     .sys_prompt_beg_delim = "[gMASK]<sop><|system|>",
     .sys_prompt_mid_delim = "<|user|>",
+
+    // TODO: Correct to be disabled for first answer of assistant?
     .sys_prompt_end_delim = "<|assistant|></think>", // <- No thinking!
 
     .prompt_beg_delim = "<|user|>",
-    .prompt_end_delim = "<|assistant|></think>", // <- No thinking!
+    //.prompt_end_delim = "<|assistant|></think>", // <- No thinking!
+    .prompt_end_delim = "<|assistant|><think>", // <- Thinking!
 
     .rev_prompt = "",
 
-    .think_beg_delim = "",
-    .think_end_delim = "",
+    .think_beg_delim = "<think>",
+    .think_end_delim = "</think>",
 
     .n_sys_keep = -1 // Not supported (use create macro, if wanted).
 };
