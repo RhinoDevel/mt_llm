@@ -704,13 +704,32 @@ static llama_model_params get_model_params_and_update_model(
     //ret_val.use_mmap // Default: true.
 
     model.tensor_buft_overrides->clear(); // Necessary?
-    if(mt_p.cpu_moe != 0)
+    //if(mt_p.n_cpu_moe) // TODO: Replace wit new "n_cpu_moe" parameter!
+    //{
+    //    // Overrules mt_p.cpu_moe.
+    //
+    //    static std::vector<std::string> patterns; // TODO: Move to mt_llm_model!
+    //
+    //    patterns.clear(); // Necessary?
+    //
+    //    for(int i = 0; i < mt_p.n_cpu_moe; ++i)
+    //    {
+    //        patterns.push_back(llm_ffn_exps_block_regex(i));
+    //
+    //        model.tensor_buft_overrides->push_back(
+    //            { patterns.back().c_str(), ggml_backend_cpu_buffer_type() });
+    //    }
+    //}
+    //else
     {
-        // Keep all Mixture of Experts (MoE) weights in the CPU.
+        if(mt_p.cpu_moe != 0)
+        {
+            // Keep all Mixture of Experts (MoE) weights in the CPU.
 
-        // Not sure, if this is the best way to do this:
+            // Not sure, if this is the best way to do this:
 
-        model.tensor_buft_overrides->push_back(llm_ffn_exps_cpu_override());
+            model.tensor_buft_overrides->push_back(llm_ffn_exps_cpu_override());
+        }
     }
     model.tensor_buft_overrides->push_back(
         { .pattern = nullptr, .buft = nullptr });
