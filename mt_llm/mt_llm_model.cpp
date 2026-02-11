@@ -185,6 +185,7 @@ static char const * const s_model_names_llama3[] = {
     "Meta Llama 3.1 8B Instruct",
     "Llama 3.2 3B Instruct",
     "Llama 3.2 1B Instruct",
+    "Llama-3.3-70B-Instruct",
     // Add more, when necessary.
     NULL // <- DON'T FORGET THIS TERMINATING NULL ENTRY!
 };
