@@ -192,7 +192,9 @@ static char const * const s_model_names_llama3[] = {
 static const struct prompt_template s_llama3 = { // <- Add this to "the" array.
     .model_names = s_model_names_llama3,
 
+    // Preceding "<|begin_of_text|>" not necessary??
     .sys_prompt_beg_delim = "<|start_header_id|>system<|end_header_id|>\n\n",
+    
     .sys_prompt_mid_delim = "<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n",
     .sys_prompt_end_delim = "<|eot_id|><|start_header_id|>assistant<|end_header_id|>",
 
