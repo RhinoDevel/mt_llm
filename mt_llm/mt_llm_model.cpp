@@ -710,9 +710,12 @@ static llama_model_params get_model_params_and_update_model(
     if(0 < mt_p.n_cpu_moe)
     {
         // Overrules mt_p.cpu_moe.
-
-        model.patterns->clear(); // Necessary?
     
+        // Probably necessary to make sure that the objects are adjacent to each
+        // other?
+        model.patterns->reserve((size_t)mt_p.n_cpu_moe);
+        model.tensor_buft_overrides->reserve((size_t)mt_p.n_cpu_moe + 1);
+
         for(int i = 0; i < mt_p.n_cpu_moe; ++i)
         {
             model.patterns->push_back(llm_ffn_exps_block_regex(i));
