@@ -59,8 +59,11 @@ struct mt_llm_p
     // *** Others ***
     // **************
 
-    // Keep all Mixture of Experts (MoE) weights in the CPU:
-    uint8_t cpu_moe; // 0 = false, true otherwise.
+    // Keep ALL Mixture of Experts (MoE) weights in the CPU:
+    uint8_t cpu_moe; // 0 = false, true otherwise. Overruled by .n_cpu_moe
+    
+    // Keep Mixture of Experts (MoE) weights of the first N layers in the CPU.
+    int32_t n_cpu_moe; // Overrules .cpu_moe.
 
     char model_file_path[MT_LLM_P_LEN_MODEL_FILE_PATH]; 
 

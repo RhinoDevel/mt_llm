@@ -703,24 +703,28 @@ static llama_model_params get_model_params_and_update_model(
     //ret_val.use_mlock // Default: false.
     //ret_val.use_mmap // Default: true.
 
-    model.tensor_buft_overrides->clear(); // Necessary?
-    //if(mt_p.n_cpu_moe) // TODO: Replace wit new "n_cpu_moe" parameter!
-    //{
-    //    // Overrules mt_p.cpu_moe.
-    //
-    //    static std::vector<std::string> patterns; // TODO: Move to mt_llm_model!
-    //
-    //    patterns.clear(); // Necessary?
-    //
-    //    for(int i = 0; i < mt_p.n_cpu_moe; ++i)
-    //    {
-    //        patterns.push_back(llm_ffn_exps_block_regex(i));
-    //
-    //        model.tensor_buft_overrides->push_back(
-    //            { patterns.back().c_str(), ggml_backend_cpu_buffer_type() });
-    //    }
-    //}
-    //else
+    // Necessary?
+    model.tensor_buft_overrides->clear();
+    model.patterns->clear();
+
+    if(0 < mt_p.n_cpu_moe)
+    {
+        // Overrules mt_p.cpu_moe.
+
+        model.patterns->clear(); // Necessary?
+    
+        for(int i = 0; i < mt_p.n_cpu_moe; ++i)
+        {
+            model.patterns->push_back(llm_ffn_exps_block_regex(i));
+    
+            model.tensor_buft_overrides->push_back(
+                { 
+                    model.patterns->back().c_str(),
+                    ggml_backend_cpu_buffer_type()
+                });
+        }
+    }
+    else
     {
         if(mt_p.cpu_moe != 0)
         {
@@ -868,6 +872,11 @@ void mt_llm_model_free(mt_llm_model * const model)
         delete model->tensor_buft_overrides;
         model->tensor_buft_overrides = nullptr;
     }
+    if(model->patterns != nullptr)
+    {
+        delete model->patterns;
+        model->patterns = nullptr;
+    }
     free(model);
 }
 
@@ -883,6 +892,15 @@ mt_llm_model* mt_llm_model_create(mt_llm_p const & mt_p)
     model->tensor_buft_overrides = // Must be done BEFORE llama model init.
         new std::vector<llama_model_tensor_buft_override>();
     if(model->tensor_buft_overrides == nullptr)
+    {
+        // Can this happen?
+        mt_llm_model_free(model); // This works, here.
+        return nullptr;
+    }
+
+    // Must be done BEFORE llama model init.
+    model->patterns = new std::vector<std::string>();
+    if(model->patterns == nullptr)
     {
         // Can this happen?
         mt_llm_model_free(model); // This works, here.

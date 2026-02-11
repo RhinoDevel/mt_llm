@@ -10,9 +10,12 @@
 
 struct mt_llm_model
 {
-    // Unsure, if this is necessary, but this way, the nullptr-terminated array
-    // is available during the whole lifetime of the model.
+    // Unsure, if necessary to keep these after model load by llama.cpp, but
+    // this way, the vectors are available during the whole lifetime of the
+    // model.
     std::vector<llama_model_tensor_buft_override>* tensor_buft_overrides;
+    std::vector<std::string>* patterns;
+
     struct llama_model * model;
 };
 
