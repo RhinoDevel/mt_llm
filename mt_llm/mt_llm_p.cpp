@@ -88,7 +88,7 @@ struct mt_llm_p * mt_llm_p_create_copy(struct mt_llm_p const & mt_p)
     copy->grammar[MT_LLM_P_LEN_GRAMMAR - 1] = '\0';
 
     copy->cpu_moe = mt_p.cpu_moe;
-    copy->n_cpu_moe = mt_p.cpu_moe;
+    copy->n_cpu_moe = mt_p.n_cpu_moe;
 
     strncpy(
         copy->model_file_path,
