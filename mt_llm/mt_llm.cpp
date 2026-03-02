@@ -234,6 +234,108 @@ static bool decode(
     return true;
 }
 
+static bool decode_some_prompt_end_delim_with_thinking(
+    char const * const some_prompt_end_delim, int const slot_index)
+{
+    assert(s_slots[slot_index]->mt_p->think_end_delim[0] != '\0');
+
+    std::string str_some_prompt_end_delim = some_prompt_end_delim;
+    std::string const str_newline = "\n";
+    std::string const str_think_beg_delim =
+        s_slots[slot_index]->mt_p->think_beg_delim;
+    std::string const str_think_end_delim =
+        s_slots[slot_index]->mt_p->think_end_delim;
+
+    int decode_trailing_newlines = 0;
+    bool decode_think_end_delim = false;
+    int decode_middle_newlines = 0;
+    bool decode_think_beg_delim = false;
+
+    while(string_ends_with(str_some_prompt_end_delim, str_newline))
+    {
+        ++decode_trailing_newlines;
+
+        string_remove_suffix(str_some_prompt_end_delim, str_newline);
+    }
+
+    if(string_ends_with(str_some_prompt_end_delim, str_think_end_delim))
+    {
+        decode_think_end_delim = true;
+
+        string_remove_suffix(str_some_prompt_end_delim, str_think_end_delim);
+    }
+
+    while(string_ends_with(str_some_prompt_end_delim, str_newline))
+    {
+        ++decode_middle_newlines;
+
+        string_remove_suffix(str_some_prompt_end_delim, str_newline);
+    }
+
+    if(string_ends_with(str_some_prompt_end_delim, str_think_beg_delim))
+    {
+        decode_think_beg_delim = true;
+
+        string_remove_suffix(str_some_prompt_end_delim, str_think_beg_delim);
+    }
+
+    if(!decode(
+            str_some_prompt_end_delim.c_str(), MT_TOK_TYPE_DELIM, slot_index))
+    {
+        MT_LOG_ERR("Decoding some prompt end delimiter!\n");
+        return false;
+    }
+    if(decode_think_beg_delim)
+    {
+        if(!decode(
+                s_slots[slot_index]->mt_p->think_beg_delim,
+                MT_TOK_TYPE_THINK_BEGIN,
+                slot_index))
+        {
+            MT_LOG_ERR("Decoding thinking prompt begin delimiter after some prompt!\n");
+            return false;
+        }
+    }
+    for(int i = 0; i < decode_middle_newlines; ++i)
+    {
+        if(!decode(
+                str_newline.c_str(),
+                decode_think_beg_delim
+                    ? MT_TOK_TYPE_THINK_TEXT
+                    : MT_TOK_TYPE_DELIM,
+                slot_index))
+        {
+            MT_LOG_ERR("Decoding some prompt middle newlines!\n");
+            return false;
+        }
+    }
+    if(decode_think_end_delim)
+    {
+        if(!decode(
+                s_slots[slot_index]->mt_p->think_end_delim,
+                MT_TOK_TYPE_THINK_END,
+                slot_index))
+        {
+            MT_LOG_ERR("Decoding thinking prompt end delimiter after some prompt!\n");
+            return false;
+        }
+    }
+    for(int i = 0; i < decode_trailing_newlines; ++i)
+    {
+        if(!decode(
+                str_newline.c_str(),
+                decode_think_beg_delim && !decode_think_end_delim
+                    ? MT_TOK_TYPE_THINK_TEXT
+                    : MT_TOK_TYPE_DELIM,
+                slot_index))
+        {
+            MT_LOG_ERR("Decoding some prompt end delimiter's trailing newlines!\n");
+            return false;
+        }
+    }
+    return true;
+}
+
 /**
  * - Just assumes that the context length is always long enough to hold the
  *   prompt to be decoded, here (no check..).
@@ -261,63 +363,8 @@ static bool decode_sys_prompt_end_delim(int const slot_index)
         }
         return true;
     }
-    assert(s_slots[slot_index]->mt_p->think_end_delim[0] != '\0');
-    
-    std::string str_sys_prompt_end_delim =
-        s_slots[slot_index]->mt_p->sys_prompt_end_delim;
-    std::string const str_think_beg_delim =
-        s_slots[slot_index]->mt_p->think_beg_delim;
-    std::string const str_think_end_delim =
-        s_slots[slot_index]->mt_p->think_end_delim;
-
-    bool decode_think_end_delim = false;
-    bool decode_think_beg_delim = false;
-
-    if(string_ends_with(str_sys_prompt_end_delim, str_think_end_delim))
-    {
-        decode_think_end_delim = true;
-
-        string_remove_suffix(str_sys_prompt_end_delim, str_think_end_delim);
-    }
-
-    if(string_ends_with(str_sys_prompt_end_delim, str_think_beg_delim))
-    {
-        decode_think_beg_delim = true;
-
-        string_remove_suffix(str_sys_prompt_end_delim, str_think_beg_delim);
-    }
-
-    if(!decode(
-        str_sys_prompt_end_delim.c_str(),
-        MT_TOK_TYPE_DELIM,
-        slot_index))
-    {
-        MT_LOG_ERR("Decoding system prompt end delimiter (2)!\n");
-        return false;
-    }
-    if(decode_think_beg_delim)
-    {
-        if(!decode(
-            s_slots[slot_index]->mt_p->think_beg_delim,
-            MT_TOK_TYPE_THINK_BEGIN,
-            slot_index))
-        {
-            MT_LOG_ERR("Decoding thinking prompt begin delimiter after system prompt!\n");
-            return false;
-        }
-    }
-    if(decode_think_end_delim)
-    {
-        if(!decode(
-            s_slots[slot_index]->mt_p->think_end_delim,
-            MT_TOK_TYPE_THINK_END,
-            slot_index))
-        {
-            MT_LOG_ERR("Decoding thinking prompt end delimiter after system prompt!\n");
-            return false;
-        }
-    }
-    return true;
+    return decode_some_prompt_end_delim_with_thinking(
+        s_slots[slot_index]->mt_p->sys_prompt_end_delim, slot_index);
 }
 
 /**
@@ -455,83 +502,8 @@ static bool decode_follow_up_query(
         }
         return true;
     }
-    assert(s_slots[slot_index]->mt_p->think_end_delim[0] != '\0');
-
-    std::string str_prompt_end_delim =
-        s_slots[slot_index]->mt_p->prompt_end_delim;
-    std::string const str_newline = "\n";
-    std::string const str_think_beg_delim =
-        s_slots[slot_index]->mt_p->think_beg_delim;
-    std::string const str_think_end_delim =
-        s_slots[slot_index]->mt_p->think_end_delim;
-
-    bool decode_trailing_newline = false;
-    bool decode_think_end_delim = false;
-    bool decode_think_beg_delim = false;
-
-    if(string_ends_with(str_prompt_end_delim, str_newline))
-    {
-        decode_trailing_newline = true;
-
-        string_remove_suffix(str_prompt_end_delim, str_newline);
-    }
-
-    if(string_ends_with(str_prompt_end_delim, str_think_end_delim))
-    {
-        decode_think_end_delim = true;
-
-        string_remove_suffix(str_prompt_end_delim, str_think_end_delim);
-    }
-
-    if(string_ends_with(str_prompt_end_delim, str_think_beg_delim))
-    {
-        decode_think_beg_delim = true;
-
-        string_remove_suffix(str_prompt_end_delim, str_think_beg_delim);
-    }
-
-    if(!decode(
-        str_prompt_end_delim.c_str(),
-        MT_TOK_TYPE_DELIM,
-        slot_index))
-    {
-        MT_LOG_ERR("Decoding prompt end delimiter (2)!\n");
-        return false;
-    }
-    if(decode_think_beg_delim)
-    {
-        if(!decode(
-            s_slots[slot_index]->mt_p->think_beg_delim,
-            MT_TOK_TYPE_THINK_BEGIN,
-            slot_index))
-        {
-            MT_LOG_ERR("Decoding thinking prompt begin delimiter after prompt!\n");
-            return false;
-        }
-    }
-    if(decode_think_end_delim)
-    {
-        if(!decode(
-            s_slots[slot_index]->mt_p->think_end_delim,
-            MT_TOK_TYPE_THINK_END,
-            slot_index))
-        {
-            MT_LOG_ERR("Decoding thinking prompt end delimiter after prompt!\n");
-            return false;
-        }
-    }
-    if(decode_trailing_newline)
-    {
-        if(!decode(
-            str_newline.c_str(),
-            MT_TOK_TYPE_THINK_TEXT, // Belongs to the thinking mode text.
-            slot_index))
-        {
-            MT_LOG_ERR("Decoding prompt end delimiter's trailing newline!\n");
-            return false;
-        }
-    }
-    return true;
+    return decode_some_prompt_end_delim_with_thinking(
+        s_slots[slot_index]->mt_p->prompt_end_delim, slot_index);
 }
 
 static bool inference(int const slot_index)

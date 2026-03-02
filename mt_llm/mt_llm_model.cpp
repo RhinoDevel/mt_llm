@@ -249,6 +249,7 @@ static const struct prompt_template s_qwen = // <- Add this to "the" array.
         "",
         "");
 
+// HARD-CODED: Reasoning/thinking is disabled, see below.
 static char const * const s_model_names_qwen3[] = {
     "Qwen3-0.6B",
     "Qwen3-1.7B",
@@ -257,6 +258,8 @@ static char const * const s_model_names_qwen3[] = {
     "Qwen3-14B",
     "Qwen3-30B-A3B",
     "Qwen3-32B",
+    "Qwen3.5-35B-A3B",
+    "Qwen3.5-9B",
     "SmolLM3 3B", // Officially recommended: Temperature = 0.6, top-p = 0.95.
     // Add more, when necessary.
     NULL // <- DON'T FORGET THIS TERMINATING NULL ENTRY!
@@ -264,20 +267,44 @@ static char const * const s_model_names_qwen3[] = {
 // This is what they call "ChatML".
 //
 // Source: https://qwen.readthedocs.io/en/latest/getting_started/concepts.html
+// 
+// Enable this to enable thinking/reasoning:
+// 
+//static const struct prompt_template s_qwen3 = // <- Add this to "the" array.
+//    MT_LLM_MODEL_CREATE(
+//        s_model_names_qwen3,
+//        "<|im_start|>",
+//        "system\n",
+//        "user\n",
+//        // NOTE that adding newline after the "assistant" role seems to be the
+//        // way to go here, as LLM on inference does not seem to begin with a
+//        // newline.
+//        "assistant" "\n",
+//        "<|im_end|>\n",
+//        "",
+//        "<think>",
+//        "</think>");
+//
+// Enable this to disable thinking/resoning:
+//
 static const struct prompt_template s_qwen3 = // <- Add this to "the" array.
-    MT_LLM_MODEL_CREATE(
-        s_model_names_qwen3,
-        "<|im_start|>",
-        "system\n",
-        "user\n",
-        // NOTE that adding newline after the "assistant" role seems to be the
-        // way to go here, as LLM on inference does not seem to begin with a
-        // newline.
-        "assistant" "\n",
-        "<|im_end|>\n",
-        "",
-        "<think>",
-        "</think>");
+{
+    .model_names = s_model_names_qwen3,
+
+    .sys_prompt_beg_delim = "<|im_start|>" "system\n",
+    .sys_prompt_mid_delim = "<|im_end|>\n" "<|im_start|>" "user\n",
+    .sys_prompt_end_delim = "<|im_end|>\n" "<|im_start|>" "assistant" "\n" "<think>" "\n" "\n" "</think>" "\n" "\n",
+
+    .prompt_beg_delim = "<|im_start|>" "user\n",
+    .prompt_end_delim = "<|im_end|>\n" "<|im_start|>" "assistant" "\n" "<think>" "\n" "\n" "</think>" "\n" "\n",
+
+    .rev_prompt = "",
+
+    .think_beg_delim = "<think>",
+    .think_end_delim = "</think>",
+
+    .n_sys_keep = -1 // Not supported (use create macro, if wanted).
+};
 
 // HARD-CODED: Reasoning/thinking is enabled.
 //             Disable it by replacing "<think>\n" with "<think></think>".
