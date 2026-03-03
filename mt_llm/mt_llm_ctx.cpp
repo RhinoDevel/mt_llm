@@ -270,27 +270,21 @@ int mt_llm_ctx_decode(
         char const * const str,
         bool(*callback)(llama_token, std::string const &, std::vector<float> const &))
 {
-    assert( // TODO: Can be removed, if "BUG" below is fixed!
-        !llama_vocab_get_add_eos(
-            llama_model_get_vocab(
-                llama_get_model(&ctx))));
-
     // Tokenize the given string (while automatically adding a BOS token at the
     // beginning, if required by the model and the context is empty):
-    //
-    std::vector<int> const tokens = mt_llm_ctx_tokenize(
-        ctx,
-        str,
 
-        // TODO: "BUG": This will also add an EOS token as postfix, if the
-        //              model says so (which probably never is the case..).
-        //              Better check, if BOS is wanted as prefix and add that
-        //              token as prefix manually, here!
-        //
-        existing_token_count == 0
-            && llama_vocab_get_add_bos( // <- Unnecessary (llama.cpp does this).
-                llama_model_get_vocab(
-                    llama_get_model(&ctx))));
+    std::vector<int> tokens = mt_llm_ctx_tokenize(ctx, str, false);
+
+    llama_vocab const * const vocab =
+        llama_model_get_vocab(llama_get_model(&ctx));
+
+    if(existing_token_count == 0 && llama_vocab_get_add_bos(vocab))
+    {
+        // A BOS token is wanted at the beginning.
+        tokens.insert(tokens.begin(), llama_vocab_bos(vocab));
+    }
+
+    // Feed the model's decoder with the tokens:
 
     if(!mt_llm_ctx_decode(
             ctx,
