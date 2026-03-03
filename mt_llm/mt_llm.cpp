@@ -591,12 +591,12 @@ static bool inference(int const slot_index)
             break;
         }
 
-        llama_token const new_tok_id = llama_sampler_sample(
+        // These are not const, because of the workaround for Qwen3.5-9b, below:
+        //
+        llama_token /*const*/ new_tok_id = llama_sampler_sample(
             s_slots[slot_index]->sampler, s_slots[slot_index]->ctx, -1);
-
-        bool const new_tok_is_eog = llama_vocab_is_eog(vocab, new_tok_id);
-
-        std::string const piece = mt_llm_ctx_get_piece_from(
+        bool /*const*/ new_tok_is_eog = llama_vocab_is_eog(vocab, new_tok_id);
+        std::string /*const*/ piece = mt_llm_ctx_get_piece_from(
             *s_slots[slot_index]->ctx, new_tok_id);
 
         if(is_thinker)
@@ -621,6 +621,22 @@ static bool inference(int const slot_index)
                     MT_LLM_P_LEN_THINK_END_DELIM) == 0)
                 {
                     is_think_tok_type = MT_TOK_TYPE_THINK_END;
+
+                    // TODO: This workaround seems to be necessary for mt_llm
+                    //       (this implementation here), but not for llama.cpp's
+                    //       examples/tools! So am I missing something..?
+                    // 
+                    // Workaround for Qwen3.5-9b:
+                    if(!is_thinking)
+                    {
+                        is_think_tok_type = -1;
+                        new_tok_is_eog = true;
+                        new_tok_id = tok_eot == -1
+                            ? llama_vocab_eos(vocab)
+                            : tok_eot;
+                        piece = mt_llm_ctx_get_piece_from(
+                            *s_slots[slot_index]->ctx, new_tok_id);
+                    }
                 }
             }
         }
