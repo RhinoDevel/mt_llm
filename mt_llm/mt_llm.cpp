@@ -493,9 +493,9 @@ static bool decode_follow_up_query(
         assert(s_slots[slot_index]->mt_p->think_end_delim[0] == '\0');
 
         if(!decode(
-            s_slots[slot_index]->mt_p->prompt_end_delim,
-            MT_TOK_TYPE_DELIM,
-            slot_index))
+                s_slots[slot_index]->mt_p->prompt_end_delim,
+                MT_TOK_TYPE_DELIM,
+                slot_index))
         {
             MT_LOG_ERR("Decoding prompt end delimiter (1)!\n");
             return false;
@@ -711,7 +711,6 @@ static bool inference(int const slot_index)
                     is_think_tok_type = MT_TOK_TYPE_THINK_END;
                 }
             }
-
         }
         //
         // Otherwise: The model is not a thinker.
@@ -910,16 +909,8 @@ static llama_sampler* create_sampler(
                 vocab, s_slots[slot_index]->mt_p->grammar, grammar_root));
     }
 
-    // Not used here: llama_sampler_init_logit_bias()
-
-    // Not used here: llama_sampler_init_penalties()
-
-    // Not used here: llama_sampler_init_dry()
-
     llama_sampler_chain_add(
         ret_val, llama_sampler_init_top_k(s_slots[slot_index]->mt_p->top_k));
-
-    // Not used here: llama_sampler_init_typical()
 
     llama_sampler_chain_add(
         ret_val,
@@ -929,9 +920,7 @@ static llama_sampler* create_sampler(
         ret_val,
         llama_sampler_init_min_p(s_slots[slot_index]->mt_p->min_p, min_keep));
 
-    // Not used here: llama_sampler_init_xtc()
-
-    llama_sampler_chain_add( // TODO: Better use llama_sampler_init_temp_ext()?
+    llama_sampler_chain_add(
         ret_val, llama_sampler_init_temp(s_slots[slot_index]->mt_p->temp));
 
     assert(LLAMA_DEFAULT_SEED == static_cast<uint32_t>(-1));
