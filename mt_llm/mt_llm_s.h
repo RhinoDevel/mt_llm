@@ -13,7 +13,7 @@ struct mt_llm_s
     struct mt_llm_p * mt_p; // nullptr
     struct mt_llm_model * model; // nullptr
     struct llama_context * ctx; // nullptr
-    struct llama_sampler * sampler; // nullptr // Better use common_sampler?
+    struct llama_sampler * sampler; // nullptr
 };
 
 #endif //MT_LLM_S
