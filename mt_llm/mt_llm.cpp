@@ -722,7 +722,9 @@ static bool inference(int const slot_index)
         }
         else
         {
-            if(llama_vocab_is_control(vocab, new_tok_id))
+            if(llama_vocab_is_control(vocab, new_tok_id)
+                // Exception: "Think" tokens don't seem to be ctrl. tokens..
+                || is_think_tok_type != -1)
             {
                 s_slots[slot_index]->last_tok_type =
                     is_think_tok_type == -1
