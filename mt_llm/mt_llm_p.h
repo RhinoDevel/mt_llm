@@ -19,7 +19,6 @@
 #define MT_LLM_P_LEN_SYS_PROMPT_MID_DELIM 128 + 1
 #define MT_LLM_P_LEN_SYS_PROMPT_END_DELIM 128 + 1
 #define MT_LLM_P_LEN_SYS_PROMPT 4095 + 1
-#define MT_LLM_P_LEN_REV_PROMPT 64 + 1
 #define MT_LLM_P_LEN_THINK_BEG_DELIM 64 + 1
 #define MT_LLM_P_LEN_THINK_END_DELIM 64 + 1
 
@@ -73,20 +72,17 @@ struct mt_llm_p
     char sys_prompt_beg_delim[MT_LLM_P_LEN_SYS_PROMPT_BEG_DELIM];
     char sys_prompt_mid_delim[MT_LLM_P_LEN_SYS_PROMPT_MID_DELIM];
     char sys_prompt_end_delim[MT_LLM_P_LEN_SYS_PROMPT_END_DELIM];
-    char rev_prompt[MT_LLM_P_LEN_REV_PROMPT]; // E.g.: "Master:"
     char think_beg_delim[MT_LLM_P_LEN_THINK_BEG_DELIM];
     char think_end_delim[MT_LLM_P_LEN_THINK_END_DELIM];
 
     // If set to "true", default settings based on the model's name (as found in
     // its meta data) will be used for the ...prompt... properties' values,
     // if such defaults exist for the model (but not sys_prompt): 
-    //
     uint8_t try_prompts_by_model; // 0 = false, true otherwise.
 
     // Retrieves each token, the token's string representation and under some
     // circumstances the probabilities for the digits (0 to 9), which will be
     // NULL, if not given:
-    //
     bool(*callback)(int, char const *, int, float const *);
 };
 

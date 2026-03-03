@@ -192,7 +192,6 @@ int main(void)
     p.sys_prompt_beg_delim[0] = '\0';
     p.sys_prompt_mid_delim[0] = '\0';
     p.sys_prompt_end_delim[0] = '\0';
-    p.rev_prompt[0] = '\0';
     p.think_beg_delim[0] = '\0';
     p.think_end_delim[0] = '\0';
 

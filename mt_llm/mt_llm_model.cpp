@@ -20,7 +20,7 @@
 
 // Does not work for all models (see struct prompt_template).
 #define MT_LLM_MODEL_CREATE( \
-    names, beg, sys, user, bot, end, rev, think_beg, think_end) \
+    names, beg, sys, user, bot, end, think_beg, think_end) \
 { \
     .model_names = (names), \
 \
@@ -30,8 +30,6 @@
 \
     .prompt_beg_delim = beg user, \
     .prompt_end_delim = end beg bot, \
-\
-    .rev_prompt = (rev), \
 \
     .think_beg_delim = (think_beg), \
     .think_end_delim = (think_end), \
@@ -53,8 +51,6 @@ struct prompt_template
 
     char const * const prompt_beg_delim;
     char const * const prompt_end_delim;
-
-    char const * const rev_prompt;
 
     char const * const think_beg_delim;
     char const * const think_end_delim;
@@ -112,13 +108,6 @@ static const struct prompt_template s_phi3 = { // <- Add this to "the" array.
     .prompt_beg_delim = "\n" "<|user|>\n",
     .prompt_end_delim = "<|end|>\n<|assistant|>" "\n",
 
-    // TODO: Test, if necessary anymore (maybe working now, since 2c35bc457b022a00f65815987583373de246f654)!
-    //
-    // TODO: This is kind of a workaround, seems not to be necessary on
-    //       the PC, but on Android (order of tokens in llama.cpp..?):
-    //
-    .rev_prompt = "<|end|>",
-
     .think_beg_delim = "",
     .think_end_delim = "",
  
@@ -144,8 +133,6 @@ static const struct prompt_template s_phi4 = { // <- Add this to "the" array.
     .prompt_beg_delim = "<|im_start|>user<|im_sep|>",
     .prompt_end_delim = "<|im_end|><|im_start|>assistant<|im_sep|>",
 
-    .rev_prompt = "",
-
     .think_beg_delim = "",
     .think_end_delim = "",
  
@@ -169,8 +156,6 @@ static const struct prompt_template s_llama2 = { // <- Add this to "the" array.
     .prompt_beg_delim = /* </s>*/"\n<s>[INST] ",
     // Sounds awesome.
     .prompt_end_delim = " [/INST]",
-
-    .rev_prompt = "",
 
     .think_beg_delim = "",
     .think_end_delim = "",
@@ -200,8 +185,6 @@ static const struct prompt_template s_llama3 = { // <- Add this to "the" array.
 
     .prompt_beg_delim = /*"<|eot_id|>"*/ "<|start_header_id|>user<|end_header_id|>\n\n",
     .prompt_end_delim = "<|eot_id|><|start_header_id|>assistant<|end_header_id|>",
-
-    .rev_prompt = "",
 
     .think_beg_delim = "",
     .think_end_delim = "",
@@ -246,7 +229,6 @@ static const struct prompt_template s_qwen = // <- Add this to "the" array.
         "assistant" "\n",
         "<|im_end|>\n",
         "",
-        "",
         "");
 
 // HARD-CODED: Reasoning/thinking is disabled, see below.
@@ -281,7 +263,6 @@ static char const * const s_model_names_qwen3[] = {
 //        // newline.
 //        "assistant" "\n",
 //        "<|im_end|>\n",
-//        "",
 //        "<think>",
 //        "</think>");
 //
@@ -297,8 +278,6 @@ static const struct prompt_template s_qwen3 = // <- Add this to "the" array.
 
     .prompt_beg_delim = "<|im_start|>" "user\n",
     .prompt_end_delim = "<|im_end|>\n" "<|im_start|>" "assistant" "\n" "<think>" "\n" "\n" "</think>" "\n" "\n",
-
-    .rev_prompt = "",
 
     .think_beg_delim = "<think>",
     .think_end_delim = "</think>",
@@ -330,8 +309,6 @@ static const struct prompt_template s_nemo3nano = { // <- Add this to "the" arr.
 
     .prompt_beg_delim = "<|im_start|>" "user\n",
     .prompt_end_delim = "<|im_end|>\n" "<|im_start|>" "assistant\n" "<think>\n",
-
-    .rev_prompt = "",
 
     .think_beg_delim = "<think>",
     .think_end_delim = "</think>",
@@ -376,8 +353,6 @@ static const struct prompt_template s_gemma = { // <- Add this to "the" array.
     // "Gemma-3-4B-It" did this). So adding them here manually seems the way to
     // go.
 
-    .rev_prompt = "",
-
     .think_beg_delim = "",
     .think_end_delim = "",
  
@@ -398,8 +373,6 @@ static const struct prompt_template s_exaone3 = { // <- Add this to "the" array.
 
     .prompt_beg_delim = "[|user|]",
     .prompt_end_delim = "\n[|assistant|]",
-
-    .rev_prompt = "",
 
     .think_beg_delim = "",
     .think_end_delim = "",
@@ -424,7 +397,6 @@ static const struct prompt_template s_cohere4ai = // <- Add this to "the" array.
         "<|CHATBOT_TOKEN|>",
         "<|END_OF_TURN_TOKEN|>",
         "",
-        "",
         "");
 
 static char const * const s_model_names_mistral[] = { // V7-Tekken
@@ -446,8 +418,6 @@ static const struct prompt_template s_mistral = { // <- Add this to "the" array.
     .prompt_beg_delim = /*"</s>" */"[INST]",
     // "I am fine. Do you like to be an LLM?"
     .prompt_end_delim = "[/INST]",
-
-    .rev_prompt = "",
 
     .think_beg_delim = "",
     .think_end_delim = "",
@@ -476,8 +446,6 @@ static const struct prompt_template s_mistral7b_v0_2 = { // <- Add this to "the"
     // "I am fine. Do you like to be an LLM?"
     .prompt_end_delim = " [/INST]",
 
-    .rev_prompt = "",
-
     .think_beg_delim = "",
     .think_end_delim = "",
  
@@ -502,8 +470,6 @@ static const struct prompt_template s_olmo = { // <- Add this to "the" array.
     // "I am fine. Do you like to be an LLM?"
     .prompt_end_delim = "\n<|assistant|>\n",
 
-    .rev_prompt = "",
-
     .think_beg_delim = "",
     .think_end_delim = "",
  
@@ -526,7 +492,6 @@ static const struct prompt_template s_granite4 = // <- Add this to "the" array.
         "assistant" "<|end_of_role|>",
         "<|end_of_text|>" "\n",
         "",
-        "",
         "");
 
 // TODO: Adds some white-space which may be wrong (e.g. after BOS <s>..).
@@ -547,8 +512,6 @@ static const struct prompt_template s_ernie45moe = { // <- Add this to "the" arr
     // https://github.com/ggml-org/llama.cpp/pull/14658#issuecomment-3082745420
     .prompt_beg_delim = "<s>User: ", // <- Hard-coded BOS token.
     .prompt_end_delim = "\nAssistant: ", // Model adds EOS ("</s>") at the end.
-
-    .rev_prompt = "",
 
     .think_beg_delim = "",
     .think_end_delim = "",
@@ -575,8 +538,6 @@ static const struct prompt_template s_glm = { // <- Add this to "the" array.
     .prompt_beg_delim = "<|user|>",
     //.prompt_end_delim = "<|assistant|></think>", // <- No thinking!
     .prompt_end_delim = "<|assistant|><think>", // <- Thinking!
-
-    .rev_prompt = "",
 
     .think_beg_delim = "<think>",
     .think_end_delim = "</think>",
@@ -849,8 +810,6 @@ bool mt_llm_model_try_set_prompts(
 
     strcpy(p.prompt_beg_delim, pt->prompt_beg_delim);
     strcpy(p.prompt_end_delim, pt->prompt_end_delim);
-
-    strcpy(p.rev_prompt, pt->rev_prompt);
 
     strcpy(p.think_beg_delim, pt->think_beg_delim);
     strcpy(p.think_end_delim, pt->think_end_delim);

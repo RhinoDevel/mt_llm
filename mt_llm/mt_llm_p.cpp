@@ -36,7 +36,6 @@ void mt_llm_p_print(struct mt_llm_p const & mt_p)
         "sys_prompt_mid_delim" ": " "\"%s\"" "\n", mt_p.sys_prompt_mid_delim);
     MT_LOG(
         "sys_prompt_end_delim" ": " "\"%s\"" "\n", mt_p.sys_prompt_end_delim);
-    MT_LOG("rev_prompt" ": " "\"%s\"" "\n", mt_p.rev_prompt);
     MT_LOG("think_beg_delim" ": " "\"%s\"" "\n", mt_p.think_beg_delim);
     MT_LOG("think_end_delim" ": " "\"%s\"" "\n", mt_p.think_end_delim);
 
@@ -125,11 +124,6 @@ struct mt_llm_p * mt_llm_p_create_copy(struct mt_llm_p const & mt_p)
         mt_p.sys_prompt,
         MT_LLM_P_LEN_SYS_PROMPT - 1);
     copy->sys_prompt[MT_LLM_P_LEN_SYS_PROMPT - 1] = '\0';
-    strncpy(
-        copy->rev_prompt,
-        mt_p.rev_prompt,
-        MT_LLM_P_LEN_REV_PROMPT - 1);
-    copy->rev_prompt[MT_LLM_P_LEN_REV_PROMPT - 1] = '\0';
     strncpy(
         copy->think_beg_delim,
         mt_p.think_beg_delim,

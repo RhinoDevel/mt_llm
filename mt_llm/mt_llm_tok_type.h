@@ -12,11 +12,6 @@
 // Tokens to-be-added on (user) interrupt request to stop inference.
 #define MT_TOK_TYPE_IRQ 2
 
-// Tokens to be send AFTER the reverse prompt was already send once [as another
-// token type, see mt_llm.cpp/inference()], the callback/client code must handle
-// this (reverse prompt being given twice).
-#define MT_TOK_TYPE_REV_PROMPT 3
-
 // The string representation of these tokens are meant to be seen by the user.
 // Thinking mode tokens (and their begin and end tags/delimiters) have their own
 // token type.

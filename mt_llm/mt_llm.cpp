@@ -508,48 +508,27 @@ static bool decode_follow_up_query(
 
 static bool inference(int const slot_index)
 {
-    // TODO: Improve to avoid sending reverse prompt twice by always waiting for
-    //       the count of tokens the reverse prompt has before calling the
-    //       callback (with the exception if EOG)!
-
     assert(slot_index == 0 || slot_index == 1);
     assert(s_slots[slot_index] != nullptr);
 
     llama_batch batch;
-    int n_cur = 0,
-        
-        // If reverse prompt is given, this will hold the index in the
-        // last_chars "ring buffer" where the last character was added.
-        last_chars_index = -1;
+    int n_cur = 0;
 
     bool irq = false,
-
         is_thinking = // See decoding of system and "normal" prompt end delim.
             s_slots[slot_index]->last_tok_type == MT_TOK_TYPE_THINK_BEGIN
-                || s_slots[slot_index]->last_tok_type == MT_TOK_TYPE_THINK_TEXT,
-
-        // Set to true, if reverse prompt is given and the count of characters
-        // of the reverse prompt was added to the last_chars "ring buffer".
-        last_chars_filled = false;
+                || s_slots[slot_index]->last_tok_type == MT_TOK_TYPE_THINK_TEXT;
 
     // To hold the token sequence to be used, if callback requests an interrupt
-    // (e.g., if the user wants to interrupt the "chatbot"). Will hold the
-    // reverse prompt tokens, if a reverse prompt is given.
+    // (e.g., if the user wants to interrupt the "chatbot").
     std::vector<int> irq_tokens;
 
-    // Used, if reverse prompt is given. Will be able to hold the count of
-    // characters necessary for the reverse prompt (w/o \0), then.
-    char* last_chars = nullptr;
-
-    int const rev_prompt_len = static_cast<int>(
-            strlen(s_slots[slot_index]->mt_p->rev_prompt));
     llama_vocab const * const vocab =
         llama_model_get_vocab(s_slots[slot_index]->model->model);
 
     std::vector<float> dig_probs;
 
-    // Prepare irq_tokens. Also prepare "ring buffer" that holds the last
-    // characters received, if reverse prompt is given / to be used:
+    // Prepare irq_tokens:
     //
     // At least, if SPM vocabulary is used and to-be-tokenized string is not
     // empty, the tokenizer may adds a space character as prefix before the
@@ -557,38 +536,22 @@ static bool inference(int const slot_index)
     // Since the interrupt can happen at each position of the LLM's response,
     // that should not be a problem, here.
     //
-    if(rev_prompt_len == 0) // Use magic (or empty) str. & EOT (or EOS), only.
-    {
-        irq_tokens = mt_llm_ctx_tokenize(
-            *s_slots[slot_index]->ctx,
-            "", // E.g. "..." can cause an LLM to also use "..." just "for fun"!
-            false); // No adding of BOS and/or EOS [is both model-dependent].
+    // Use magic (or empty) str. & EOT (or EOS), only.
+    irq_tokens = mt_llm_ctx_tokenize(
+        *s_slots[slot_index]->ctx,
+        "", // E.g. "..." can cause an LLM to also use "..." just "for fun"!
+        false); // No adding of BOS and/or EOS [is both model-dependent].
 
-        // TODO: On Android, for the following models, this should be the other
-        //       way around, as it seems (try EOS first, then EOT):
-        //       - EXAONE 3.0 7.8B Instruct
-        //
-        // See: https://github.com/ggerganov/llama.cpp/pull/8296
-        //
-        llama_token const tok_eot = llama_vocab_eot(vocab);
-        //
-        assert(tok_eot != -1 || llama_vocab_eos(vocab) != -1);
-        irq_tokens.push_back(tok_eot == -1 ? llama_vocab_eos(vocab) : tok_eot);
-    }
-    else // Use reverse prompt given.
-    {
-        assert(last_chars_index == -1);
-        assert(!last_chars_filled);
-
-        irq_tokens = mt_llm_ctx_tokenize(
-            *s_slots[slot_index]->ctx,
-            s_slots[slot_index]->mt_p->rev_prompt,
-            false); // No adding of BOS and/or EOS [is both model-dependent].
-
-        last_chars = static_cast<char*>(
-            malloc(rev_prompt_len * sizeof *last_chars));
-        assert(last_chars != nullptr);
-    }
+    // TODO: On Android, for the following models, this should be the other
+    //       way around, as it seems (try EOS first, then EOT):
+    //       - EXAONE 3.0 7.8B Instruct
+    //
+    // See: https://github.com/ggerganov/llama.cpp/pull/8296
+    //
+    llama_token const tok_eot = llama_vocab_eot(vocab);
+    //
+    assert(tok_eot != -1 || llama_vocab_eos(vocab) != -1);
+    irq_tokens.push_back(tok_eot == -1 ? llama_vocab_eos(vocab) : tok_eot);
 
     int64_t const t_main_start = ggml_time_us();
 
@@ -608,55 +571,6 @@ static bool inference(int const slot_index)
     {
         int is_think_tok_type = -1; // -1 == No thinking token type at all.
 
-        // Break, if (optional) reverse prompt was sampled last:
-        if(last_chars_filled)
-        {
-            assert(0 <= last_chars_index && last_chars_index < rev_prompt_len);
-
-            //  0123456
-            // "Master:"
-            // <=> rev_prompt_len = 7
-
-            bool rev_prompt_found = true; // TRUE by default.
-            
-            for(int i = rev_prompt_len - 1; 0 <= i; --i)
-            {
-                int const cur_last_chars_index =
-                        (i + last_chars_index + 1) % rev_prompt_len;
-
-                assert(
-                    0 <= cur_last_chars_index
-                        && cur_last_chars_index < rev_prompt_len);
-
-                if(s_slots[slot_index]->mt_p->rev_prompt[i]
-                    != last_chars[cur_last_chars_index])
-                {
-                    rev_prompt_found = false;
-                    break;
-                }
-            }
-
-            if(rev_prompt_found)
-            {
-                s_slots[slot_index]->last_tok_type = MT_TOK_TYPE_REV_PROMPT;
-
-                // "Hack":
-                //
-                // The reverse prompt got already sampled and send to the
-                // client code as non-reverse-prompt token type and now gets
-                // send the second time AS reverse-prompt token type.
-                //
-                // The client code must be aware of this and take action!
-                //
-                s_slots[slot_index]->mt_p->callback(
-                    0,
-                    s_slots[slot_index]->mt_p->rev_prompt, // TODO: What about a possible leading space (would be "missing" here)? Problem??
-                    s_slots[slot_index]->last_tok_type,
-                    nullptr);
-                break;
-            }
-        }
-
         if(irq)
         {
             s_slots[slot_index]->last_tok_type = MT_TOK_TYPE_IRQ;
@@ -671,8 +585,6 @@ static bool inference(int const slot_index)
             {
                 MT_LOG_ERR("Decoding IRQ tokens!\n");
                 llama_batch_free(batch);
-                free(last_chars);
-                last_chars = nullptr;
                 return false;
             }
             n_cur += static_cast<int>(irq_tokens.size()); // TODO: NOT caring about maximum count..!
@@ -717,7 +629,8 @@ static bool inference(int const slot_index)
 
         if(new_tok_is_eog)
         {
-            s_slots[slot_index]->last_tok_type = MT_TOK_TYPE_SAMPLED_EOG; // (causes stop, below)
+            s_slots[slot_index]->last_tok_type =
+                MT_TOK_TYPE_SAMPLED_EOG; // (causes stop, below)
         }
         else
         {
@@ -735,12 +648,11 @@ static bool inference(int const slot_index)
                 // These are the ones to be visible to the end user
                 // [although tokens with attribution "unknown" are also
                 // included here, see llama_vocab.cpp, token_to_piece() in
-                // comparance to llama_vocab_is_control()]:
+                // comparance to llama_vocab_is_control() & is_think_tok_type]:
 
                 if(is_thinking)
                 {
-                    s_slots[slot_index]->last_tok_type =
-                        MT_TOK_TYPE_THINK_TEXT;
+                    s_slots[slot_index]->last_tok_type = MT_TOK_TYPE_THINK_TEXT;
                 }
                 else
                 {
@@ -760,7 +672,6 @@ static bool inference(int const slot_index)
                         float max = 0.0f;
 
                         // TODO: Do just once during initialization:
-                        //
                         std::vector<std::vector<int>> const dig_toks =
                             mt_llm_model_get_digit_tokens(
                                 *s_slots[slot_index]->model);
@@ -814,51 +725,19 @@ static bool inference(int const slot_index)
                 "Decoding current \"batch\" (error code %d)!\n",
                 static_cast<int>(llama_decode_res));
             llama_batch_free(batch);
-            free(last_chars);
-            last_chars = nullptr;
             return false;
         }
 
         llama_sampler_accept(s_slots[slot_index]->sampler, new_tok_id);
 
         // Break, if some kind of EOG token was generated:
-        //
         if (new_tok_is_eog)
         {
             ++n_cur;
             break;
         }
-
-        if(last_chars != nullptr) // => Reverse prompt is used and ring buffer.
-        {
-            char const * piece_chars = piece.c_str();
-
-            while(*piece_chars != '\0') // Add current piece to ringbuffer.
-            {
-                ++last_chars_index;
-
-                if(last_chars_index == rev_prompt_len)
-                {
-                    last_chars_index = 0;
-                }
-
-                last_chars[last_chars_index] = *piece_chars;
-
-                if(last_chars_index == rev_prompt_len - 1)
-                {
-                    // Ring buffer is filled <=> Holds enough characters to
-                    // compare with the reverse prompt. Signalize this:
-
-                    last_chars_filled = true; // (setting once would be enough)
-                }
-
-                ++piece_chars;
-            }
-        }
     }
     llama_batch_free(batch);
-    free(last_chars);
-    last_chars = nullptr;
 
     if(n_ctx <= n_cur)
     {
@@ -868,6 +747,7 @@ static bool inference(int const slot_index)
 
     int64_t const t_main_end = ggml_time_us();
     int const n_decode = n_cur - s_slots[slot_index]->tok_cnt;
+
     MT_LOG(
         "Decoded %d tokens in %.2fs, speed: %.2f t/s.\n",
         n_decode,
