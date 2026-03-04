@@ -296,10 +296,20 @@ static bool decode_some_prompt_end_delim_with_thinking(
             return false;
         }
     }
-    for(int i = 0; i < decode_middle_newlines; ++i)
+    if(decode_middle_newlines != 0)
     {
+        std::string str_newline_buf = "";
+
+        // We do not want to separate the newlines (sometimes multiple newlines
+        // are getting merged into a single token):
+
+        for(int i = 0; i < decode_middle_newlines; ++i)
+        {
+            str_newline_buf += str_newline;
+        }
+
         if(!decode(
-                str_newline.c_str(),
+                str_newline_buf.c_str(),
                 decode_think_beg_delim
                     ? MT_TOK_TYPE_THINK_TEXT
                     : MT_TOK_TYPE_DELIM,
@@ -320,10 +330,20 @@ static bool decode_some_prompt_end_delim_with_thinking(
             return false;
         }
     }
-    for(int i = 0; i < decode_trailing_newlines; ++i)
+    if(decode_trailing_newlines != 0)
     {
+        std::string str_newline_buf = "";
+
+        // We do not want to separate the newlines (sometimes multiple newlines
+        // are getting merged into a single token):
+
+        for(int i = 0; i < decode_trailing_newlines; ++i)
+        {
+            str_newline_buf += str_newline;
+        }
+
         if(!decode(
-                str_newline.c_str(),
+                str_newline_buf.c_str(),
                 decode_think_beg_delim && !decode_think_end_delim
                     ? MT_TOK_TYPE_THINK_TEXT
                     : MT_TOK_TYPE_DELIM,
@@ -333,6 +353,7 @@ static bool decode_some_prompt_end_delim_with_thinking(
             return false;
         }
     }
+
     return true;
 }
 
@@ -621,22 +642,6 @@ static bool inference(int const slot_index)
                     MT_LLM_P_LEN_THINK_END_DELIM) == 0)
                 {
                     is_think_tok_type = MT_TOK_TYPE_THINK_END;
-
-                    // TODO: This workaround seems to be necessary for mt_llm
-                    //       (this implementation here), but not for llama.cpp's
-                    //       examples/tools! So am I missing something..?
-                    // 
-                    // Workaround for Qwen3.5-9b:
-                    if(!is_thinking)
-                    {
-                        is_think_tok_type = -1;
-                        new_tok_is_eog = true;
-                        new_tok_id = tok_eot == -1
-                            ? llama_vocab_eos(vocab)
-                            : tok_eot;
-                        piece = mt_llm_ctx_get_piece_from(
-                            *s_slots[slot_index]->ctx, new_tok_id);
-                    }
                 }
             }
         }
