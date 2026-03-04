@@ -241,6 +241,7 @@ static char const * const s_model_names_qwen3[] = {
     "Qwen3-30B-A3B",
     "Qwen3-32B",
     "Qwen3.5-35B-A3B",
+    "Qwen3.5-4B",
     "Qwen3.5-9B",
     "Qwen3.5-27B",
     "SmolLM3 3B", // Officially recommended: Temperature = 0.6, top-p = 0.95.
