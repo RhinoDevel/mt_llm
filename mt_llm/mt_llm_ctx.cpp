@@ -275,6 +275,16 @@ int mt_llm_ctx_decode(
 
     std::vector<int> tokens = mt_llm_ctx_tokenize(ctx, str, false);
 
+//#ifndef NDEBUG
+//    // E.g. to compare with:
+//    //     llama-completion.exe --model D:\LLMs\Qwen3.5-9B-Q4_K_M.gguf --verbose --jinja
+//    MT_LOG("Tokenized \"%s\" into:\n", str);
+//    for(int i = 0; i < static_cast<int>(tokens.size()); ++i)
+//    {
+//        MT_LOG("Index %d = %d\n", i, tokens[i]);
+//    }
+//#endif //NDEBUG
+
     llama_vocab const * const vocab =
         llama_model_get_vocab(llama_get_model(&ctx));
 
