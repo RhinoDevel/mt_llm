@@ -1099,7 +1099,7 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_create_embeddings(
     // *** Get token representation of given prompt/text:                    ***
     // *************************************************************************
 
-    MT_LOG("Prompt: \"%s\"\n", prompt);
+    //MT_LOG("Prompt: \"%s\"\n", prompt);
 
     inp = common_tokenize(
             s_slots[slot_index]->ctx,
@@ -1124,7 +1124,7 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_create_embeddings(
         // header.
     }
 
-    MT_LOG("Number of tokens in prompt: %zu\n", inp.size());
+    //MT_LOG("Number of tokens in prompt: %zu\n", inp.size());
 
 #ifndef NDEBUG
     for(int i = 0; i < static_cast<int>(inp.size()); ++i)
