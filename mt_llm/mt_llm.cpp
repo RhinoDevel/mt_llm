@@ -952,7 +952,7 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_state_restore(
 
     if(read != state->size)
     {
-        MT_LOG_ERR("Filed to read exactly %zu bytes!\n", state->size);
+        MT_LOG_ERR("Failed to read exactly %zu bytes!\n", state->size);
         return false;
     }
 
