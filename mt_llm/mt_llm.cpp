@@ -831,6 +831,50 @@ static llama_sampler* create_sampler(
     return ret_val;
 }
 
+/**
+ * - Returns an empty vector on error.
+ * - Works for pooling type "rank", only.
+ */
+static std::vector<float> rerank_batch_decode(
+    llama_batch& batch, int const slot_index)
+{
+    std::vector<float> ret_val;
+
+    ret_val.clear(); // Necessary?
+
+    clear_llama_memory(slot_index);
+
+    if(llama_decode(s_slots[slot_index]->ctx, batch) != 0)
+    {
+        assert(ret_val.size() == 0);
+        return ret_val;
+    }
+
+    for(int i = 0; i < batch.n_tokens; i++)
+    {
+        assert(batch.logits[i] != 0); // Must be configured this way.
+
+        int const embd_pos = batch.seq_id[i][0];
+        float const * const embd = llama_get_embeddings_seq(
+            s_slots[slot_index]->ctx, embd_pos);
+
+        if(embd == nullptr)
+        {
+            assert(false); // Should not get here.
+            ret_val.clear();
+            return ret_val;
+        }
+
+        if(static_cast<int>(ret_val.size()) != embd_pos)
+        {
+            assert(ret_val.back() == embd[0]);
+            continue;
+        }
+        ret_val.push_back(embd[0]);
+    }
+    return ret_val;
+}
+
 MT_EXPORT_LLM_API void __stdcall mt_llm_free(void * const ptr)
 {
     free(ptr);
@@ -855,9 +899,9 @@ MT_EXPORT_LLM_API int mt_llm_get_token_count(
         MT_LOG_ERR("NULL given!\n");
         return -2;
     }
-    if(s_slots[slot_index]->mt_p->embeddings != 0)
+    if(s_slots[slot_index]->mt_p->emb_or_rerank != 0)
     {
-        MT_LOG_ERR("Configured for embeddings creation!\n");
+        MT_LOG_ERR("Configured for embeddings creation or reranking usage!\n");
         return -4;
     }
 
@@ -980,9 +1024,9 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_query(
         return false;
     }
 
-    if(s_slots[slot_index]->mt_p->embeddings != 0)
+    if(s_slots[slot_index]->mt_p->emb_or_rerank != 0)
     {
-        MT_LOG_ERR("Configured for embeddings creation!\n");
+        MT_LOG_ERR("Configured for embeddings creation or reranking usage!\n");
         return false;
     }
 
@@ -1068,7 +1112,7 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_create_embeddings(
         return nullptr;
     }
 
-    if(s_slots[slot_index]->mt_p->embeddings == 0)
+    if(s_slots[slot_index]->mt_p->emb_or_rerank != 1) // Hard-coded
     {
         MT_LOG_ERR("NOT configured for embeddings creation!\n");
         return nullptr;
@@ -1223,6 +1267,266 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_create_embeddings(
     return emb; // Caller takes ownership.
 }
 
+MT_EXPORT_LLM_API float* __stdcall mt_llm_rerank(
+    char const * const query,
+    char const * const * documents,
+    int const doc_count,
+    int const slot_index)
+{
+    //llama-embedding.exe -m E:\Rer\bge-reranker-v2-m3-q5_k_m.gguf -p "What is a whale?\tButterflies eat flowers.\nWhat is a whale?\tA large mammal that lives in water.\nWhat is a whale?\tDogs want food." --pooling rank --verbose-prompt --embd-normalize -1
+
+    std::vector<std::vector<llama_token>> inputs;
+    llama_batch batch;
+    int s = 0;
+    std::vector<float> scores;
+
+    // *************************************************************************
+    // *** Check input arguments and (context) configuration:                ***
+    // *************************************************************************
+
+    if(query == nullptr
+        || (strnlen(query, 65535) == 65535)) // <- Hard-coded limit.
+    {
+        MT_LOG_ERR("Query is not given or it is no or a too long C-string!\n");
+        return nullptr;
+    }
+
+    if(documents == nullptr)
+    {
+        MT_LOG_ERR("No documents given!\n");
+        return nullptr;
+    }
+    if(doc_count < 1)
+    {
+        MT_LOG_ERR("Invalid document count given (0 or lower)!\n");
+        return nullptr;
+    }
+    for(int i = 0; i < doc_count; ++i)
+    {
+        if(documents[i] == nullptr)
+        {
+            MT_LOG_ERR("Document at index %d is \"unset\" (null)!\n", i);
+            return nullptr;
+        }
+        if(strnlen(documents[i], 65535) == 65535) // <- Hard-coded limit.
+        {
+            MT_LOG_ERR("Document at index %d is a too long C-string!\n", i);
+            return nullptr;
+        }
+    }
+
+    if(slot_index != 0 && slot_index != 1)
+    {
+        MT_LOG_ERR("Unsupported slot index given, doing nothing.\n");
+        return nullptr;
+    }
+    if(s_slots[slot_index] == nullptr)
+    {
+        MT_LOG_ERR("Not intialized!\n");
+        return nullptr;
+    }
+
+    if(s_slots[slot_index]->mt_p->emb_or_rerank != 2) // Hard-coded
+    {
+        MT_LOG_ERR("NOT configured for reranking usage!\n");
+        return nullptr;
+    }
+
+    assert(s_slots[slot_index]->mt_p != nullptr);
+    assert(s_slots[slot_index]->model != nullptr);
+    assert(s_slots[slot_index]->ctx != nullptr);
+    //assert(s_slots[slot_index]->sampler != nullptr); // Does not matter.
+
+    // No support for other pooling types, here:
+    assert( // See mt_llm_ctx_create().
+        llama_pooling_type(
+            s_slots[slot_index]->ctx) == LLAMA_POOLING_TYPE_RANK);
+
+    if(llama_model_chat_template(s_slots[slot_index]->model->model, "rerank")
+        != nullptr)
+    {
+        // See llama.cpp's embedding.cpp example for implementation.
+        MT_LOG_ERR("Reranking model has a chat template, this is currently not supported!\n");
+        return nullptr;
+    }
+
+    uint32_t const n_ctx = llama_n_ctx(s_slots[slot_index]->ctx);
+
+    uint32_t const n_batch = llama_n_batch(s_slots[slot_index]->ctx);
+
+    // *************************************************************************
+    // *** Get token representation of given query and documents:            ***
+    // *************************************************************************
+
+    //MT_LOG("Query: \"%s\", document count: %d\n", query, doc_count);
+
+    const llama_vocab * const vocab = llama_model_get_vocab(
+        s_slots[slot_index]->model->model);
+
+    // Get add-SEP and add-EOS token, if there are any:
+    std::string const add_sep_tok_str =
+        llama_vocab_get_add_sep(vocab)
+            ? llama_vocab_get_text(vocab, llama_vocab_sep(vocab))
+            : "";
+    std::string const add_eos_tok_str =
+        llama_vocab_get_add_eos(vocab)
+            ? llama_vocab_get_text(vocab, llama_vocab_eos(vocab))
+            : "";
+
+    // For warnings, below:
+    llama_token const sep_tok = llama_vocab_sep(vocab);
+    llama_token const eos_tok = llama_vocab_eos(vocab);
+
+    // Currently works for reranking models without a chat template, only
+    // (see check, above).
+
+    for(int i = 0; i < doc_count; ++i)
+    {
+        std::vector<llama_token> inp;
+        std::string prompt;
+
+        prompt += query; // Implicit conversion.
+        if(!add_eos_tok_str.empty())
+        {
+            prompt += add_eos_tok_str;
+        }
+        if(!add_sep_tok_str.empty())
+        {
+            prompt += add_sep_tok_str;
+        }
+        prompt += documents[i]; // Implicit conversion.
+
+        inp = common_tokenize(
+            s_slots[slot_index]->ctx,
+            prompt,
+            true, // Add specials.
+            true); // Parse specials.
+        if(inp.size() == 0)
+        {
+            MT_LOG_ERR("No tokens generated from prompt at index %d!\n", i);
+            return nullptr;
+        }
+        if(n_batch < inp.size())
+        {
+            MT_LOG_ERR(
+                "Token count of prompt at index %d exceeds max. token count per batch, which is %d (increase and re-run?)\n",
+                i,
+                static_cast<int>(n_batch));
+            return nullptr;
+        }
+
+        //MT_LOG("Number of tokens in prompt at index &d: %zu\n", i, inp.size());
+#ifndef NDEBUG
+        for(int j = 0; j < static_cast<int>(inp.size()); ++j)
+        {
+            MT_LOG(
+                "%6d => \"%s\"\n",
+                inp[j],
+                common_token_to_piece(s_slots[slot_index]->ctx, inp[j]).c_str());
+        }
+#endif //NDEBUG
+
+        if(inp.back() != sep_tok && inp.back() != eos_tok)
+        {
+            MT_LOG(
+                "Warning: Last token in the prompt at index %d is neither SEP nor EOS.\n",
+                i);
+
+            // tokenizer.ggml.add_eos_token should be set to true in the GGUF
+            // header.
+        }
+
+        inputs.push_back(inp);
+    }
+
+    // *************************************************************************
+    // *** Get scores for each query/document pair via batch processing:     ***
+    // *************************************************************************
+
+    batch = llama_batch_init(
+        n_batch, // Using the maximum number of tokens allowed per batch.
+        0, // No (input) embeddings.
+        1); // Single sequence per token.
+
+    int const n_seq_max = llama_max_parallel_sequences();
+
+    scores.clear(); // Necessary?
+    s = 0; // Number of prompts in current batch.
+    for(int k = 0; k < static_cast<int>(inputs.size()); ++k)
+    {
+        std::vector<llama_token>& inp = inputs[k];
+        uint64_t const n_toks = static_cast<uint64_t>(inp.size());
+
+        if(n_batch < batch.n_tokens + n_toks || n_seq_max <= s)
+        {
+            // No more capacity left, decode & add remember current scores:
+
+            std::vector<float> const cur_scores = rerank_batch_decode(
+                batch, slot_index);
+
+            if(cur_scores.empty())
+            {
+                // Indicates an error.
+                MT_LOG_ERR(
+                    "Batch decode for reranking (index %d) failed (1)!\n",
+                    k);
+                llama_batch_free(batch);
+                return nullptr;
+            }
+            for(int i = 0; i < cur_scores.size(); ++i)
+            {
+                scores.push_back(cur_scores[i]);
+            }
+
+            s = 0;
+            common_batch_clear(batch);
+        }
+            
+        // Add to batch:
+        for(int i = 0; i < static_cast<int>(inp.size()); ++i)
+        {
+            common_batch_add(batch, inp[i], i, { s }, true);
+        }
+
+        s += 1;
+    }
+
+    std::vector<float> const final_scores = rerank_batch_decode(
+        batch, slot_index);
+
+    llama_batch_free(batch);
+
+    if(final_scores.empty())
+    {
+        // Indicates an error.
+        MT_LOG_ERR("Final batch decode for reranking failed!\n");
+        return nullptr;
+    }
+    for(int i = 0; i < static_cast<int>(final_scores.size()); ++i)
+    {
+        scores.push_back(final_scores[i]);
+    }
+
+    assert(doc_count == static_cast<int>(inputs.size()));
+    assert(scores.size() == inputs.size());
+    
+    // *************************************************************************
+    // *** Copy scores from vectors to heap array:                           ***
+    // *************************************************************************
+
+    float * const raw_scores =
+        static_cast<float*>(malloc(scores.size() * sizeof *raw_scores));
+
+    assert(raw_scores != nullptr);
+
+    for(int i = 0; i < static_cast<int>(scores.size()); ++i)
+    {
+        raw_scores[i] = scores[i];
+    }
+
+    return raw_scores; // Caller takes ownership.
+}
+
 MT_EXPORT_LLM_API void __stdcall mt_llm_reset(
     char const * const sys_prompt, int const slot_index)
 {
@@ -1328,9 +1632,9 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_reinit(
     }
     assert(s_slots[slot_index] == nullptr);
 
-    if(mt_p->callback == nullptr && !mt_p->embeddings)
+    if(mt_p->callback == nullptr && mt_p->emb_or_rerank == 0)
     {
-        MT_LOG_ERR("Callback is not set (only allowed for embedding vector generation)!\n");
+        MT_LOG_ERR("Callback is not set (only allowed for embedding vector generation or reranking usage)!\n");
         //mt_llm_deinit(slot_index);
         return false;
     }
@@ -1385,7 +1689,8 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_reinit(
         return false;
     }
 
-    // Initialize the sampling (unnecessary for embeddings creation):
+    // Initialize the sampling (unnecessary for embeddings creation and
+    // reranking usage):
     //
     s_slots[slot_index]->sampler = create_sampler(
         llama_model_get_vocab(s_slots[slot_index]->model->model), slot_index);
@@ -1396,9 +1701,9 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_reinit(
         return false;
     }
 
-    // Support for models with an encoder should be easy to add, but is
-    // currently not implemented (although for embeddings, models with encoder
-    // AND decoder are not supported):
+    // Support for models with an encoder is currently not implemented (for
+    // embeddings and reranking, models with encoder AND decoder are not
+    // supported, anyway):
     //
     if(llama_model_has_encoder(s_slots[slot_index]->model->model))
     {
@@ -1408,7 +1713,7 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_reinit(
     }
 
     // Modify prompt strings by model (name), if wanted (maybe unnecessary for
-    // embeddings creation):
+    // embeddings creation and reranking usage):
     //
     if(s_slots[slot_index]->mt_p->try_prompts_by_model != 0)
     {
@@ -1445,8 +1750,9 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_reinit(
 
         if(n_ctx_train < n_ctx_ctx)
         {
-            // For non-embedding, interpreted as error here (by definition):
-            if(s_slots[slot_index]->mt_p->embeddings == 0)
+            // For non-embedding, non-reranking, interpreted as error here (by
+            // definition):
+            if(s_slots[slot_index]->mt_p->emb_or_rerank == 0)
             {
                 assert(
                     s_slots[slot_index]->mt_p->n_ctx == 0
@@ -1461,7 +1767,7 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_reinit(
                 return false;
             }
 
-            // For embedding, just issue a warning:
+            // For embedding and reranking, just issue a warning:
             MT_LOG(
                 "Warning: Model was trained on %d tokens (using %d tokens).\n",
                 n_ctx_train,

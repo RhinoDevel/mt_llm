@@ -28,9 +28,9 @@ MT_EXPORT_LLM_API void __stdcall mt_llm_free(void * const ptr);
  * - Slot index may be 0 or 1.
  * 
  * - Returns -1, if not initialized.
- * - Returns -2, if nullptr given.
+ * - Returns -2, if NULL given.
  * - Returns -3, if given slot index is invalid.
- * - Returns -4, if configured to create embeddings.
+ * - Returns -4, if configured to create embeddings or for reranking usage.
  */
 MT_EXPORT_LLM_API int __stdcall mt_llm_get_token_count(
     char const * const text, bool const add_special, int const slot_index);
@@ -42,9 +42,9 @@ MT_EXPORT_LLM_API int __stdcall mt_llm_get_token_count(
  *   mt_llm_state.state and the mt_llm_state object itself can be freed via
  *   mt_llm_free() each.
  * 
- * - Returns nullptr and does nothing, if invalid slot index given.
- * - Returns nullptr and does nothing, if not initialized.
- * - Returns nullptr, if dumping to memory failed (e.g. out of space).
+ * - Returns NULL and does nothing, if invalid slot index given.
+ * - Returns NULL and does nothing, if not initialized.
+ * - Returns NULL, if dumping to memory failed (e.g. out of space).
  */
 MT_EXPORT_LLM_API struct mt_llm_state * __stdcall mt_llm_state_create(
     int const slot_index);
@@ -55,7 +55,7 @@ MT_EXPORT_LLM_API struct mt_llm_state * __stdcall mt_llm_state_create(
  * - Returns false and does nothing, if invalid slot index given.
  * - Returns false and does nothing, if not initialized.
  * 
- * - Assumes non-nullptr given and object to hold valid values.
+ * - Assumes non-NULL given and object to hold valid values.
  * 
  * - If false is returned because of failed read attempt, the state of the
  *   context is unknown..
@@ -81,7 +81,7 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_query(
  * - Caller takes ownership of the returned array, must be freed via
  *   mt_llm_free().
  * 
- * - Returns nullptr and does nothing, if not initialized or invalid slot index
+ * - Returns NULL and does nothing, if not initialized or invalid slot index
  *   or NOT configured for embeddings creation.
  * 
  * - Clears the memory (K/V) before creation of embeddings.
@@ -91,6 +91,27 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_query(
  */
 MT_EXPORT_LLM_API float* __stdcall mt_llm_create_embeddings(
     char const * const prompt, int const slot_index, int * const out_count);
+
+/**
+ * - Slot index may be 0 or 1.
+ *
+ * - Caller takes ownership of the returned array, must be freed via
+ *   mt_llm_free().
+ *
+ * - Returns NULL and does nothing, if not initialized or invalid slot index
+ *   or NOT configured for reranker "mode" or some other error happened.
+ *
+ * - Clears the memory (K/V) before creation of reranking result.
+ *
+ * - The returned numbers are NOT normalized, yet.
+ * 
+ * - The returned numbers are of the same count as the given documents.
+ */
+MT_EXPORT_LLM_API float* __stdcall mt_llm_rerank(
+    char const * const query,
+    char const * const * documents,
+    int const doc_count,
+    int const slot_index);
 
 /** Reset state, as if the model just got loaded. Optionally update system
  *  prompt.

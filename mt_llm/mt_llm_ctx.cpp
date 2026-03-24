@@ -27,7 +27,7 @@ static llama_context_params get_ctx_params(
 
     ret_val.flash_attn_type = LLAMA_FLASH_ATTN_TYPE_DISABLED;
 
-    if(mt_p.embeddings == 0)
+    if(mt_p.emb_or_rerank == 0)
     {
         ret_val.n_ctx = mt_p.n_ctx;
 
@@ -37,11 +37,12 @@ static llama_context_params get_ctx_params(
     }
     else
     {
-        ret_val.embeddings = true; // Extract embeddings (together with logits).
+        // Extract embeddings (together with logits). Correct for rerank., too.
+        ret_val.embeddings = true;
 
         // If we wanted to process multiple sequences at once, we should make
         // use of the parameters .kv_unified and/or .n_parallel, too (see
-        // llama.cpp's example).
+        // llama.cpp's example). Also used for reranking mode, see below!
 
         // llama.cpp seems to do pooling for embedding vector calculation over
         // the latest batch / decode call, only (maybe this has something to do
@@ -120,6 +121,30 @@ static llama_context_params get_ctx_params(
                     static_cast<int>(ret_val.pooling_type));
                 break;
             }
+        }
+
+        if(mt_p.emb_or_rerank == 2) // Hard-coded (reranking usage).
+        {
+            // For reranking usage, make sure that pooling type is "rank":
+            if(ret_val.pooling_type != LLAMA_POOLING_TYPE_RANK)
+            {
+                assert(ret_val.pooling_type == LLAMA_POOLING_TYPE_NONE);
+
+                MT_LOG(
+                    "Pooling type set is not \"rank\" (%d), but %d. Using \"rank\" instead..\n",
+                    static_cast<int>(LLAMA_POOLING_TYPE_RANK),
+                    static_cast<int>(ret_val.pooling_type));
+                ret_val.pooling_type = LLAMA_POOLING_TYPE_RANK;
+            }
+
+            // For reranking, we use batching (could be activated for
+            // embeddings, too):
+            assert(ret_val.n_seq_max == 1);
+            ret_val.kv_unified = true;
+            ret_val.n_seq_max = llama_max_parallel_sequences(); // Per batch.
+            MT_LOG(
+                "Unified K/V cache is enabled, max. nr. of sequences is %d.\n",
+                ret_val.n_seq_max);
         }
     }
 
