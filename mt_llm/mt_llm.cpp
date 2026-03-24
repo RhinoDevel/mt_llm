@@ -1350,6 +1350,13 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_rerank(
         return nullptr;
     }
 
+    if(llama_model_n_cls_out(s_slots[slot_index]->model->model) != 1)
+    {
+        // See llama.cpp's embedding.cpp example for implementation.
+        MT_LOG_ERR("Reranking model has more than one classifier output, this is currently not supported!\n");
+        return nullptr;
+    }
+
     uint32_t const n_ctx = llama_n_ctx(s_slots[slot_index]->ctx);
 
     uint32_t const n_batch = llama_n_batch(s_slots[slot_index]->ctx);
