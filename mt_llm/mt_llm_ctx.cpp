@@ -128,8 +128,6 @@ static llama_context_params get_ctx_params(
             // For reranking usage, make sure that pooling type is "rank":
             if(ret_val.pooling_type != LLAMA_POOLING_TYPE_RANK)
             {
-                assert(ret_val.pooling_type == LLAMA_POOLING_TYPE_NONE);
-
                 MT_LOG(
                     "Pooling type set is not \"rank\" (%d), but %d. Using \"rank\" instead..\n",
                     static_cast<int>(LLAMA_POOLING_TYPE_RANK),
