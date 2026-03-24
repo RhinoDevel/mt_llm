@@ -12,6 +12,8 @@ to the awesome large-language model inference engine called
 
 - Simplified/reduced configuration parameters.
 - Simple init./query/reset/deinit. functions.
+- Simple function to create embedding vector via an embedding model.
+- Simple interface to create ranking scores with a reranking model.
 - Callback to send tokens to and more and let the callback decide, when to stop
   inference.
 - Snapshot interface to store/update/reset the current LLM state (using RAM).
@@ -174,10 +176,11 @@ int main(void)
     
     p.n_gpu_layers = 0;
     
-    p.seed = -1;
     p.n_ctx = 2048;
     p.threads = 0;
-    
+    p.emb_or_rerank = 0;
+
+    p.seed = -1;
     p.top_k = 40;
     p.top_p = 0.95;
     p.min_p = 0.05;
@@ -185,6 +188,7 @@ int main(void)
     p.grammar[0] = '\0';
     
     p.cpu_moe = 0;
+    p.n_cpu_moe = 0;
     
     strncpy(
         p.model_file_path,

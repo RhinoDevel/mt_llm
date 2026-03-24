@@ -171,10 +171,11 @@ int main(void)
     
     p.n_gpu_layers = 0;
     
-    p.seed = -1;
     p.n_ctx = 2048;
     p.threads = 0;
+    p.emb_or_rerank = 0;
     
+    p.seed = -1;
     p.top_k = 40;
     p.top_p = 0.95;
     p.min_p = 0.05;
@@ -185,6 +186,7 @@ int main(void)
     strncpy(p.sys_prompt, s_llm_sys_prompt, MT_LLM_P_LEN_SYS_PROMPT);
     
     p.cpu_moe = 0;
+    p.n_cpu_moe = 0;
     
     // These will be automatically set by mt_llm (if model is supported..):
     p.prompt_beg_delim[0] = '\0';
