@@ -139,7 +139,8 @@ static llama_context_params get_ctx_params(
             // embeddings, too):
             assert(ret_val.n_seq_max == 1);
             ret_val.kv_unified = true;
-            ret_val.n_seq_max = llama_max_parallel_sequences(); // Per batch.
+            ret_val.n_seq_max = // Per batch.
+                static_cast<uint32_t>(llama_max_parallel_sequences());
             MT_LOG(
                 "Unified K/V cache is enabled, max. nr. of sequences is %d.\n",
                 ret_val.n_seq_max);
