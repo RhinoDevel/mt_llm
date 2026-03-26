@@ -15,6 +15,7 @@ struct mt_llm_model
     // model.
     std::vector<llama_model_tensor_buft_override>* tensor_buft_overrides;
     std::vector<std::string>* patterns;
+    std::vector<ggml_backend_dev_t>* devices;
 
     struct llama_model * model;
 };

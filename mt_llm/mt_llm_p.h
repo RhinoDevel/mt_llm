@@ -31,6 +31,8 @@ struct mt_llm_p
     // *** llama_model_params ***
     // **************************
 
+    // With mt_llm (in contrast to llama.cpp), if this is set to 0, the GPU will
+    // not be used for anything, only the CPU [see mt_llm_model_create()].
     int32_t n_gpu_layers;
 
     // ****************************

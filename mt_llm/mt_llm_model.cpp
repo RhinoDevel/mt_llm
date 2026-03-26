@@ -693,6 +693,8 @@ static llama_model_params get_model_params_and_update_model(
     mt_llm_p const & mt_p, mt_llm_model& model)
 {
     llama_model_params ret_val = llama_model_default_params();
+    bool do_set_tensor_buft_overrides = false;
+    bool do_set_devices = false;
 
     ret_val.n_gpu_layers = mt_p.n_gpu_layers;
     //ret_val.use_mlock // Default: false.
@@ -701,11 +703,14 @@ static llama_model_params get_model_params_and_update_model(
     // Necessary?
     model.tensor_buft_overrides->clear();
     model.patterns->clear();
+    model.devices->clear();
 
     if(0 < mt_p.n_cpu_moe)
     {
         // Overrules mt_p.cpu_moe.
     
+        do_set_tensor_buft_overrides = true;
+
         // Probably necessary to make sure that the objects are adjacent to each
         // other?
         model.patterns->reserve((size_t)mt_p.n_cpu_moe);
@@ -728,6 +733,8 @@ static llama_model_params get_model_params_and_update_model(
         {
             // Keep all Mixture of Experts (MoE) weights in the CPU.
 
+            do_set_tensor_buft_overrides = true;
+
             // Not sure, if this is the best way to do this:
 
             model.tensor_buft_overrides->push_back(llm_ffn_exps_cpu_override());
@@ -735,7 +742,43 @@ static llama_model_params get_model_params_and_update_model(
     }
     model.tensor_buft_overrides->push_back(
         { .pattern = nullptr, .buft = nullptr });
-    ret_val.tensor_buft_overrides = model.tensor_buft_overrides->data();
+    if(do_set_tensor_buft_overrides)
+    {
+        // Probably necessary to make sure that the objects are adjacent to each
+        // other?
+        model.devices->reserve(1 + 1);
+
+        ret_val.tensor_buft_overrides = model.tensor_buft_overrides->data();
+    }
+#ifndef NDEBUG
+    else
+    {
+        // model.tensor_buft_overrides will still be set..
+        assert(ret_val.tensor_buft_overrides == nullptr);
+    }
+#endif //NDEBUG
+
+    if(ret_val.n_gpu_layers == 0)
+    {
+        // No GPU layers shall be offloaded.
+        // => We are interpreting this as "don't use the GPU at all":
+
+        do_set_devices = true;
+        model.devices->push_back(
+            ggml_backend_dev_by_type(GGML_BACKEND_DEVICE_TYPE_CPU));
+    }
+    model.devices->push_back(nullptr);
+    if(do_set_devices)
+    {
+        ret_val.devices = model.devices->data();
+    }
+#ifndef NDEBUG
+    else
+    {
+        // model.devices will still be set..
+        assert(ret_val.devices == nullptr);
+    }
+#endif //NDEBUG
 
     return ret_val;
 }
@@ -873,6 +916,11 @@ void mt_llm_model_free(mt_llm_model * const model)
         delete model->patterns;
         model->patterns = nullptr;
     }
+    if(model->devices != nullptr)
+    {
+        delete model->devices;
+        model->devices = nullptr;
+    }
     free(model);
 }
 
@@ -897,6 +945,15 @@ mt_llm_model* mt_llm_model_create(mt_llm_p const & mt_p)
     // Must be done BEFORE llama model init.
     model->patterns = new std::vector<std::string>();
     if(model->patterns == nullptr)
+    {
+        // Can this happen?
+        mt_llm_model_free(model); // This works, here.
+        return nullptr;
+    }
+
+    // Must be done BEFORE llama model init.
+    model->devices = new std::vector<ggml_backend_dev_t>();
+    if(model->devices == nullptr)
     {
         // Can this happen?
         mt_llm_model_free(model); // This works, here.
