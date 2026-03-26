@@ -1455,7 +1455,7 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_rerank(
         0, // No (input) embeddings.
         1); // Single sequence per token.
 
-    int const n_seq_max = llama_max_parallel_sequences();
+    int const n_seq_max = static_cast<int>(llama_max_parallel_sequences());
 
     scores.clear(); // Necessary?
     s = 0; // Number of prompts in current batch.
