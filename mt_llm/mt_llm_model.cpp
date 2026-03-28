@@ -256,28 +256,7 @@ static char const * const s_model_names_qwen3[] = {
     NULL // <- DON'T FORGET THIS TERMINATING NULL ENTRY!
 };
 // This is what they call "ChatML".
-//
 // Source: https://qwen.readthedocs.io/en/latest/getting_started/concepts.html
-// 
-// Enable this to enable thinking/reasoning:
-// 
-//static const struct prompt_template s_qwen3 = // <- Add this to "the" array.
-//    MT_LLM_MODEL_CREATE(
-//        s_model_names_qwen3,
-//        true,
-//        "<|im_start|>",
-//        "system\n",
-//        "user\n",
-//        // NOTE that adding newline after the "assistant" role seems to be the
-//        // way to go here, as LLM on inference does not seem to begin with a
-//        // newline.
-//        "assistant" "\n",
-//        "<|im_end|>\n",
-//        "<think>",
-//        "</think>");
-//
-// Enable this to disable thinking/resoning:
-//
 static const struct prompt_template s_qwen3 = // <- Add this to "the" array.
 {
     .model_names = s_model_names_qwen3,
@@ -295,10 +274,24 @@ static const struct prompt_template s_qwen3 = // <- Add this to "the" array.
 
     .n_sys_keep = -1 // Not supported (use create macro, if wanted).
 };
+static const struct prompt_template s_qwen3_think = // <- Add this to "the" arr.
+    MT_LLM_MODEL_CREATE(
+        s_model_names_qwen3,
+        true,
+        "<|im_start|>",
+        "system\n",
+        "user\n",
+        // NOTE that adding newline after the "assistant" role seems to be the
+        // way to go here, as LLM on inference does not seem to begin with a
+        // newline.
+        "assistant" "\n",
+        "<|im_end|>\n",
+        "<think>",
+        "</think>");
 
-// HARD-CODED: Reasoning/thinking is enabled.
-//             Disable it by replacing "<think>\n" with "<think></think>".
-//             Adding a newline after "<think>" seems to be correct.
+// Reasoning/thinking:
+// - Disable it by replacing "<think>\n" with "<think></think>".
+// - Adding a newline after "<think>" seems to be correct.
 static char const * const s_model_names_nemo3nano[] = {
     "Nemotron-3-Nano-30B-A3B",
     // Add more, when necessary.
@@ -307,7 +300,18 @@ static char const * const s_model_names_nemo3nano[] = {
 // This is what they call "ChatML", with additional "<think></think>" to
 // disable or "<think>\n" to enable or "jumpstart" assistant's thinking process.
 // Source: https://unsloth.ai/docs/models/tutorials/nemotron-3
-static const struct prompt_template s_nemo3nano = { // <- Add this to "the" arr.
+static const struct prompt_template s_nemo3nano = // <- Add this to "the" array.
+    MT_LLM_MODEL_CREATE(
+        s_model_names_nemo3nano,
+        false,
+        "<|im_start|>",
+        "system\n",
+        "user\n",
+        "assistant\n" "<think></think>",
+        "<|im_end|>\n",
+        "<think>",
+        "</think>");
+static const struct prompt_template s_nemo3nano_think = { // Add to "the" array.
     .model_names = s_model_names_nemo3nano,
     .enable_thinking = true,
 
@@ -539,7 +543,6 @@ static const struct prompt_template s_ernie45moe = { // <- Add this to "the" arr
     .n_sys_keep = -1 // Not supported (use create macro, if wanted).
 };
 
-// HARD-CODED: Reasoning/thinking is enabled.
 static char const * const s_model_names_glm[] = {
     "Glm-4.7-Flash",
     "cerebras/GLM-4.7-Flash-REAP-23B-A3B",
@@ -547,6 +550,24 @@ static char const * const s_model_names_glm[] = {
     NULL // <- DON'T FORGET THIS TERMINATING NULL ENTRY!
 };
 static const struct prompt_template s_glm = { // <- Add this to "the" array.
+    .model_names = s_model_names_glm,
+    .enable_thinking = false,
+
+    .sys_prompt_beg_delim = "[gMASK]<sop><|system|>",
+    .sys_prompt_mid_delim = "<|user|>",
+
+    // TODO: Correct to be disabled for first answer of assistant?
+    .sys_prompt_end_delim = "<|assistant|></think>", // <- No thinking!
+
+    .prompt_beg_delim = "<|user|>",
+    .prompt_end_delim = "<|assistant|></think>", // <- No thinking!
+
+    .think_beg_delim = "<think>",
+    .think_end_delim = "</think>",
+
+    .n_sys_keep = -1 // Not supported (use create macro, if wanted).
+};
+static const struct prompt_template s_glm_think = { // <- Add this to "the" arr.
     .model_names = s_model_names_glm,
     .enable_thinking = true,
 
@@ -575,7 +596,9 @@ static struct prompt_template const * const s_prompt_templates[] = {
     &s_llama3,
     &s_qwen,
     &s_qwen3,
+    &s_qwen3_think,
     &s_nemo3nano,
+    &s_nemo3nano_think,
     &s_gemma,
     &s_exaone3,
     &s_cohere4ai,
@@ -585,6 +608,7 @@ static struct prompt_template const * const s_prompt_templates[] = {
     &s_granite4,
     &s_ernie45moe,
     &s_glm,
+    &s_glm_think,
     // Add more, when necessary.
     NULL // <- DON'T FORGET THIS TERMINATING NULL ENTRY!
 };
