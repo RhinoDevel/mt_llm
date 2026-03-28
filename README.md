@@ -208,6 +208,7 @@ int main(void)
     p.think_end_delim[0] = '\0';
 
     p.try_prompts_by_model = 1;
+    p.enable_thinking = 0;
 
     p.callback = my_callback;
 
