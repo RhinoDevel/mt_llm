@@ -84,6 +84,10 @@ struct mt_llm_p
     // if such defaults exist for the model (but not sys_prompt): 
     uint8_t try_prompts_by_model; // 0 = false, true otherwise.
 
+    // If try_prompts_by_model is non-zero (meaning true), this tells mt_llm, if
+    // the prompts wanted shall enable thinking/reasoning or disable it.
+    bool enable_thinking; // 0 = false, true otherwise.
+
     // Retrieves each token, the token's string representation and under some
     // circumstances the probabilities for the digits (0 to 9), which will be
     // NULL, if not given:

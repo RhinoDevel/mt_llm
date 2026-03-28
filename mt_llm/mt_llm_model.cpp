@@ -20,9 +20,10 @@
 
 // Does not work for all models (see struct prompt_template).
 #define MT_LLM_MODEL_CREATE( \
-    names, beg, sys, user, bot, end, think_beg, think_end) \
+    names, do_enable_thinking, beg, sys, user, bot, end, think_beg, think_end) \
 { \
-    .model_names = (names), \
+    .model_names = names, \
+    .enable_thinking = do_enable_thinking, \
 \
     .sys_prompt_beg_delim = beg sys, \
     .sys_prompt_mid_delim = end beg user, \
@@ -31,8 +32,8 @@
     .prompt_beg_delim = beg user, \
     .prompt_end_delim = end beg bot, \
 \
-    .think_beg_delim = (think_beg), \
-    .think_end_delim = (think_end), \
+    .think_beg_delim = think_beg, \
+    .think_end_delim = think_end, \
 \
     .n_sys_keep = (int)sizeof(beg sys) - 1 \
 }
@@ -44,6 +45,7 @@
 struct prompt_template
 {
     char const * const * const model_names;
+    bool const enable_thinking;
 
     char const * const sys_prompt_beg_delim;
     char const * const sys_prompt_mid_delim;
@@ -71,6 +73,7 @@ static char const * const s_model_names_phi3[] = {
 };
 static const struct prompt_template s_phi3 = { // <- Add this to "the" array.
     .model_names = s_model_names_phi3,
+    .enable_thinking = false,
 
     // This is how it is currently implemented here, but see the notes below
     // (uncertain about some newlines, etc.):
@@ -121,6 +124,7 @@ static char const * const s_model_names_phi4[] = {
 };
 static const struct prompt_template s_phi4 = { // <- Add this to "the" array.
     .model_names = s_model_names_phi4,
+    .enable_thinking = false,
 
     // Source: https://huggingface.co/microsoft/phi-4
 
@@ -146,6 +150,7 @@ static char const * const s_model_names_llama2[] = {
 };
 static const struct prompt_template s_llama2 = { // <- Add this to "the" array.
     .model_names = s_model_names_llama2,
+    .enable_thinking = false,
 
     .sys_prompt_beg_delim = /*<s>*/"[INST] <<SYS>>\n",
     // Always answer like a pirate.
@@ -176,6 +181,7 @@ static char const * const s_model_names_llama3[] = {
 };
 static const struct prompt_template s_llama3 = { // <- Add this to "the" array.
     .model_names = s_model_names_llama3,
+    .enable_thinking = false,
 
     // Preceding "<|begin_of_text|>" will be added automatically.
     .sys_prompt_beg_delim = "<|start_header_id|>system<|end_header_id|>\n\n",
@@ -220,6 +226,7 @@ static char const * const s_model_names_qwen[] = {
 static const struct prompt_template s_qwen = // <- Add this to "the" array.
     MT_LLM_MODEL_CREATE(
         s_model_names_qwen,
+        false,
         "<|im_start|>",
         "system\n",
         "user\n",
@@ -257,6 +264,7 @@ static char const * const s_model_names_qwen3[] = {
 //static const struct prompt_template s_qwen3 = // <- Add this to "the" array.
 //    MT_LLM_MODEL_CREATE(
 //        s_model_names_qwen3,
+//        true,
 //        "<|im_start|>",
 //        "system\n",
 //        "user\n",
@@ -273,6 +281,7 @@ static char const * const s_model_names_qwen3[] = {
 static const struct prompt_template s_qwen3 = // <- Add this to "the" array.
 {
     .model_names = s_model_names_qwen3,
+    .enable_thinking = false,
 
     .sys_prompt_beg_delim = "<|im_start|>" "system\n",
     .sys_prompt_mid_delim = "<|im_end|>\n" "<|im_start|>" "user\n",
@@ -300,6 +309,7 @@ static char const * const s_model_names_nemo3nano[] = {
 // Source: https://unsloth.ai/docs/models/tutorials/nemotron-3
 static const struct prompt_template s_nemo3nano = { // <- Add this to "the" arr.
     .model_names = s_model_names_nemo3nano,
+    .enable_thinking = true,
 
     .sys_prompt_beg_delim = "<|im_start|>" "system\n",
     .sys_prompt_mid_delim = "<|im_end|>\n" "<|im_start|>" "user\n",
@@ -335,6 +345,7 @@ static char const * const s_model_names_gemma[] = {
 };
 static const struct prompt_template s_gemma = { // <- Add this to "the" array.
     .model_names = s_model_names_gemma,
+    .enable_thinking = false,
 
     // Source: https://ai.google.dev/gemma/docs/core/prompt-structure
 
@@ -368,6 +379,7 @@ static char const * const s_model_names_exaone3[] = {
 };
 static const struct prompt_template s_exaone3 = { // <- Add this to "the" array.
     .model_names = s_model_names_exaone3,
+    .enable_thinking = false,
 
     .sys_prompt_beg_delim = "[|system|]",
     .sys_prompt_mid_delim = "[|endofturn|]\n[|user|]",
@@ -393,6 +405,7 @@ static char const * const s_model_names_cohere4ai[] = {
 static const struct prompt_template s_cohere4ai = // <- Add this to "the" array.
     MT_LLM_MODEL_CREATE(
         s_model_names_cohere4ai,
+        false,
         "<|START_OF_TURN_TOKEN|>",
         "<|SYSTEM_TOKEN|>",
         "<|USER_TOKEN|>",
@@ -410,6 +423,7 @@ static char const * const s_model_names_mistral[] = { // V7-Tekken
 };
 static const struct prompt_template s_mistral = { // <- Add this to "the" array.
     .model_names = s_model_names_mistral,
+    .enable_thinking = false,
 
     .sys_prompt_beg_delim = /*"<s>" */"[SYSTEM_PROMPT]",
     // "You are a helpful AI assistant."
@@ -434,6 +448,7 @@ static char const * const s_model_names_mistral7b_v0_2[] = {
 };
 static const struct prompt_template s_mistral7b_v0_2 = { // <- Add this to "the" array.
     .model_names = s_model_names_mistral7b_v0_2,
+    .enable_thinking = false,
 
     // For these models, the system prompt shall be added as prefix in the first
     // user prompt, so we are modelling the system prompt to do exactly that:
@@ -461,6 +476,7 @@ static char const * const s_model_names_olmo[] = {
 };
 static const struct prompt_template s_olmo = { // <- Add this to "the" array.
     .model_names = s_model_names_olmo,
+    .enable_thinking = false,
 
     .sys_prompt_beg_delim = "<|system|>\n",
     // "You are a helpful AI assistant."
@@ -488,6 +504,7 @@ static char const * const s_model_names_granite4[] = {
 static const struct prompt_template s_granite4 = // <- Add this to "the" array.
     MT_LLM_MODEL_CREATE(
         s_model_names_granite4,
+        false,
         "<|start_of_role|>",
         "system" "<|end_of_role|>",
         "user" "<|end_of_role|>",
@@ -504,6 +521,7 @@ static char const * const s_model_names_ernie45moe[] = {
 };
 static const struct prompt_template s_ernie45moe = { // <- Add this to "the" array.
     .model_names = s_model_names_ernie45moe,
+    .enable_thinking = false,
 
     .sys_prompt_beg_delim = "",
     .sys_prompt_mid_delim = "\nUser: ",
@@ -530,6 +548,7 @@ static char const * const s_model_names_glm[] = {
 };
 static const struct prompt_template s_glm = { // <- Add this to "the" array.
     .model_names = s_model_names_glm,
+    .enable_thinking = true,
 
     .sys_prompt_beg_delim = "[gMASK]<sop><|system|>",
     .sys_prompt_mid_delim = "<|user|>",
@@ -666,7 +685,7 @@ static int get_str_index(char const * const * const arr, char const * const str)
  * - Returns NULL, if not found or index in given array, if found.
  */
 static struct prompt_template const * try_get_prompt_template(
-    char const * const model_name)
+    char const * const model_name, bool const enable_thinking)
 {
     assert(model_name != NULL);
 
@@ -680,7 +699,8 @@ static struct prompt_template const * try_get_prompt_template(
         {
             return NULL; // Not found.
         }
-        if(get_str_index(cur->model_names, model_name) != -1)
+        if(cur->enable_thinking == enable_thinking
+            && get_str_index(cur->model_names, model_name) != -1)
         {
             return cur;
         }
@@ -826,7 +846,8 @@ static char* get_meta_val_str(llama_model const & model, char const * const key)
 bool mt_llm_model_try_set_prompts(
     mt_llm_model const & model, struct mt_llm_p & p)
 {
-    char * const model_name = get_meta_val_str(*model.model, MT_LLM_MODEL_NAME_KEY);
+    char * const model_name = get_meta_val_str(
+        *model.model, MT_LLM_MODEL_NAME_KEY);
     struct prompt_template const * pt = nullptr;
 
     if(model_name == nullptr)
@@ -835,7 +856,7 @@ bool mt_llm_model_try_set_prompts(
         return false;
     }
 
-    pt = try_get_prompt_template(model_name);
+    pt = try_get_prompt_template(model_name, p.enable_thinking);
     if(pt == nullptr)
     {
         MT_LOG(

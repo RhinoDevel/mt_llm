@@ -40,6 +40,7 @@ void mt_llm_p_print(struct mt_llm_p const & mt_p)
     MT_LOG("think_end_delim" ": " "\"%s\"" "\n", mt_p.think_end_delim);
 
     MT_LOG("try_prompts_by_model" ": " "%u" "\n", mt_p.try_prompts_by_model);
+    MT_LOG("enable_thinking" ": " "%u" "\n", mt_p.enable_thinking);
     
     MT_LOG(
         "callback" ": " "Is %sset." "\n",
@@ -136,6 +137,7 @@ struct mt_llm_p * mt_llm_p_create_copy(struct mt_llm_p const & mt_p)
     copy->think_end_delim[MT_LLM_P_LEN_THINK_END_DELIM - 1] = '\0';
 
     copy->try_prompts_by_model = mt_p.try_prompts_by_model;
+    copy->enable_thinking = mt_p.enable_thinking;
 
     copy->callback = mt_p.callback;
 

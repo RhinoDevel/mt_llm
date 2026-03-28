@@ -28,8 +28,8 @@ std::vector<std::vector<int>> mt_llm_model_get_digit_tokens(
     mt_llm_model const & model);
 
 /**
- * - Returns true, if given model('s name) is supported and given parameters
- *   object was modified.
+ * - Returns true, if given model('s name) and mode (non-thinking or thinking)
+     are supported and given parameters object was modified.
  *   Returns false, if not supported and nothing was changed.
  */
 bool mt_llm_model_try_set_prompts(
