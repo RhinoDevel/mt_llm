@@ -376,6 +376,30 @@ static const struct prompt_template s_gemma = { // <- Add this to "the" array.
     .n_sys_keep = -1 // Not supported (use create macro, if wanted).
 };
 
+static char const * const s_model_names_gemma4[] = {
+    "Gemma-4-E4B-It",
+    // Add more, when necessary.
+    NULL // <- DON'T FORGET THIS TERMINATING NULL ENTRY!
+};
+static const struct prompt_template s_gemma4 = { // <- Add this to "the" array.
+    .model_names = s_model_names_gemma4,
+    .enable_thinking = false,
+
+    .sys_prompt_beg_delim = "<bos><|turn>system\n",
+    // System prompt will be put here.
+    .sys_prompt_mid_delim = "<turn|>\n<|turn>user\n",
+    // User's first prompt will be put here.
+    .sys_prompt_end_delim = "<turn|>\n<|turn>model\n",
+
+    .prompt_beg_delim = "<|turn>user\n",
+    .prompt_end_delim = "<turn|>\n<|turn>model\n",
+
+    .think_beg_delim = "<|channel>thought\n",
+    .think_end_delim = "<channel|>\n",
+
+    .n_sys_keep = -1 // Not supported (use create macro, if wanted).
+};
+
 static char const * const s_model_names_exaone3[] = {
     "EXAONE 3.0 7.8B Instruct",
     // Add more, when necessary.
@@ -600,6 +624,7 @@ static struct prompt_template const * const s_prompt_templates[] = {
     &s_nemo3nano,
     &s_nemo3nano_think,
     &s_gemma,
+    &s_gemma4,
     &s_exaone3,
     &s_cohere4ai,
     &s_mistral,
