@@ -7,11 +7,11 @@ CXXFLAGS = -Wall -O2 -std=c++17 -fPIC -DNDEBUG
 LLAMA_DIR = ./llama.cpp
 LLAMA_LIB_DIRS = -L$(LLAMA_DIR)/build/bin -L$(LLAMA_DIR)/build/common
 
-LLAMA_LIBS = -lggml-base -lggml-cpu -lggml -lllama -lllama-common-base
+LLAMA_LIBS = -lggml-base -lggml-cpu -lggml -lllama -lllama-common -lllama-common-base
 #
 # With CUDA (although does not seem to be necessary):
 #
-#LLAMA_LIBS = -lggml-base -lggml-cpu -lggml-cuda -lggml -lllama -lcommon-base
+#LLAMA_LIBS = -lggml-base -lggml-cpu -lggml-cuda -lggml -lllama -lllama-common -lllama-common-base
 
 LLAMA_INCLUDES = -I$(LLAMA_DIR)/include -I$(LLAMA_DIR)/ggml/include -I$(LLAMA_DIR)/common -I$(LLAMA_DIR)/src -I$(LLAMA_DIR)/vendor
 
