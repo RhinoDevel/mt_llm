@@ -57,10 +57,17 @@ where dynamically linked libraries are sufficient, too.
 
 ### Build [llama.cpp](https://github.com/ggml-org/llama.cpp)
 
-#### Compile `llama.lib`, `ggml.lib` and `common.lib` as static libraries
+#### Compile relevant static libraries
 
-Compile the necessary `llama.lib`, `ggml.lib` and `common.lib` libraries via
-Visual Studio and `mt_llm/llama.cpp/CMakeLists.txt` as static libraries.
+Compile these necessary libraries via Visual Studio and
+`mt_llm/llama.cpp/CMakeLists.txt` as static libraries:
+
+- `src/llama.lib`
+- `ggml/src/ggml.lib`
+- `ggml/src/ggml-base.lib`
+- `ggml/src/ggml-cpu.lib`
+- `common/llama-common.lib`
+- `common/llama-common-base.lib`
 
 To do that, select `x64-windows-msvc-debug` or `x64-windows-msvc-release` as
 configuration, in Visual Studio.
