@@ -1,3 +1,5 @@
 .vs/**/*
 x64/**/*
 mt_llm/x64/**/*
+mt_llm/*.o
+mt_llm/*.so
