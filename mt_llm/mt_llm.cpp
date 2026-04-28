@@ -41,16 +41,19 @@ static void clear_llama_memory(int const slot_index)
     }
 }
 
-static void init_common_if_necessary(void)
+static void init_common_if_necessary(bool const enable_llama_cpp_log)
 {
     if(!s_is_common_init)
     {
         common_init();
 
-        //common_log_pause(common_log_main());
-        //
-        //static void llama_log_callback_null(ggml_log_level level, const char * text, void * user_data) { (void) level; (void) text; (void) user_data; }
-        //llama_log_set(llama_log_callback_null, NULL);
+        if(!enable_llama_cpp_log)
+        {
+            common_log_pause(common_log_main());
+            //
+            //static void llama_log_callback_null(ggml_log_level level, const char * text, void * user_data) { (void) level; (void) text; (void) user_data; }
+            //llama_log_set(llama_log_callback_null, NULL);
+        }
 
         s_is_common_init = true;
     }
@@ -1631,7 +1634,7 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_reinit(
         return false;
     }
 
-    init_common_if_necessary();
+    init_common_if_necessary(mt_p->enable_llama_cpp_log != 0);
 
     if(s_slots[slot_index] != nullptr)
     {
