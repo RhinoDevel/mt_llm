@@ -51,6 +51,7 @@ int main(void)
 
     p.try_prompts_by_model = 0;
     p.enable_thinking = 0;
+    p.enable_llama_cpp_log = 1;
 
     p.callback = NULL;
 
