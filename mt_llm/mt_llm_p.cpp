@@ -41,7 +41,8 @@ void mt_llm_p_print(struct mt_llm_p const & mt_p)
 
     MT_LOG("try_prompts_by_model" ": " "%u" "\n", mt_p.try_prompts_by_model);
     MT_LOG("enable_thinking" ": " "%u" "\n", mt_p.enable_thinking);
-    
+    MT_LOG("enable_llama_cpp_log" ": " "%u" "\n", mt_p.enable_llama_cpp_log);
+
     MT_LOG(
         "callback" ": " "Is %sset." "\n",
         mt_p.callback == nullptr ? "NOT " : "");
@@ -138,6 +139,7 @@ struct mt_llm_p * mt_llm_p_create_copy(struct mt_llm_p const & mt_p)
 
     copy->try_prompts_by_model = mt_p.try_prompts_by_model;
     copy->enable_thinking = mt_p.enable_thinking;
+    copy->enable_llama_cpp_log = mt_p.enable_llama_cpp_log;
 
     copy->callback = mt_p.callback;
 

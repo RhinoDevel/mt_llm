@@ -248,6 +248,7 @@ static char const * const s_model_names_qwen3[] = {
     "Qwen3-30B-A3B",
     "Qwen3-32B",
     "Qwen3.5-35B-A3B",
+    "Qwen3.5-0.8B",
     "Qwen3.5-4B",
     "Qwen3.5-9B",
     "Qwen3.5-27B",
@@ -906,7 +907,7 @@ bool mt_llm_model_try_set_prompts(
         return false;
     }
 
-    pt = try_get_prompt_template(model_name, p.enable_thinking);
+    pt = try_get_prompt_template(model_name, p.enable_thinking != 0);
     if(pt == nullptr)
     {
         MT_LOG(

@@ -86,7 +86,9 @@ struct mt_llm_p
 
     // If try_prompts_by_model is non-zero (meaning true), this tells mt_llm, if
     // the prompts wanted shall enable thinking/reasoning or disable it.
-    bool enable_thinking; // 0 = false, true otherwise.
+    uint8_t enable_thinking; // 0 = false, true otherwise.
+
+    uint8_t enable_llama_cpp_log; // 0 = false, true otherwise.
 
     // Retrieves each token, the token's string representation and under some
     // circumstances the probabilities for the digits (0 to 9), which will be
