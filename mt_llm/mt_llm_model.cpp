@@ -527,10 +527,10 @@ static const struct prompt_template s_olmo = { // <- Add this to "the" array.
 static char const * const s_model_names_granite4[] = {
     "Granite-4.0-H-1B",
     "Granite-4.0-H-Micro",
+    "Granite-4.1-30B",
     // Add more, when necessary.
     NULL // <- DON'T FORGET THIS TERMINATING NULL ENTRY!
 };
-// https://huggingface.co/CohereLabs/aya-expanse-8b/blob/main/tokenizer_config.json
 static const struct prompt_template s_granite4 = // <- Add this to "the" array.
     MT_LLM_MODEL_CREATE(
         s_model_names_granite4,
