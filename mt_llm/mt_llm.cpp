@@ -1673,7 +1673,7 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_reinit(
     if(s_slots[slot_index]->mt_p->threads == 0)
     {
         s_slots[slot_index]->mt_p->threads =
-            (uint32_t)cpu_get_num_physical_cores();
+            (uint32_t)common_cpu_get_num_physical_cores();
         assert(0 < s_slots[slot_index]->mt_p->threads);
     }
 
