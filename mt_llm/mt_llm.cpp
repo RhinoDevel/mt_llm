@@ -615,12 +615,10 @@ static bool inference(int const slot_index)
             break;
         }
 
-        // These are not const, because of the workaround for Qwen3.5-9b, below:
-        //
-        llama_token /*const*/ new_tok_id = llama_sampler_sample(
+        llama_token const new_tok_id = llama_sampler_sample(
             s_slots[slot_index]->sampler, s_slots[slot_index]->ctx, -1);
-        bool /*const*/ new_tok_is_eog = llama_vocab_is_eog(vocab, new_tok_id);
-        std::string /*const*/ piece = mt_llm_ctx_get_piece_from(
+        bool const new_tok_is_eog = llama_vocab_is_eog(vocab, new_tok_id);
+        std::string const piece = mt_llm_ctx_get_piece_from(
             *s_slots[slot_index]->ctx, new_tok_id);
 
         if(is_thinker)
