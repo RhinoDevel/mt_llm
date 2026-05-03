@@ -554,39 +554,10 @@ static bool inference(int const slot_index)
             s_slots[slot_index]->last_tok_type == MT_TOK_TYPE_THINK_BEGIN
                 || s_slots[slot_index]->last_tok_type == MT_TOK_TYPE_THINK_TEXT;
 
-    // To hold the token sequence to be used, if callback requests an interrupt
-    // (e.g., if the user wants to interrupt the "chatbot").
-    std::vector<int> irq_tokens;
-
     llama_vocab const * const vocab =
         llama_model_get_vocab(s_slots[slot_index]->model->model);
 
     std::vector<float> dig_probs;
-
-    // Prepare irq_tokens:
-    //
-    // At least, if SPM vocabulary is used and to-be-tokenized string is not
-    // empty, the tokenizer may adds a space character as prefix before the
-    // created tokens.
-    // Since the interrupt can happen at each position of the LLM's response,
-    // that should not be a problem, here.
-    //
-    // Use magic (or empty) str. & EOT (or EOS), only.
-    irq_tokens = mt_llm_ctx_tokenize(
-        *s_slots[slot_index]->ctx,
-        "", // E.g. "..." can cause an LLM to also use "..." just "for fun"!
-        false); // No adding of BOS and/or EOS [is both model-dependent].
-
-    // TODO: On Android, for the following models, this should be the other
-    //       way around, as it seems (try EOS first, then EOT):
-    //       - EXAONE 3.0 7.8B Instruct
-    //
-    // See: https://github.com/ggerganov/llama.cpp/pull/8296
-    //
-    llama_token const tok_eot = llama_vocab_eot(vocab);
-    //
-    assert(tok_eot != -1 || llama_vocab_eos(vocab) != -1);
-    irq_tokens.push_back(tok_eot == -1 ? llama_vocab_eos(vocab) : tok_eot);
 
     int64_t const t_main_start = ggml_time_us();
     int const n_ctx = static_cast<int>(llama_n_ctx(s_slots[slot_index]->ctx));
@@ -601,6 +572,33 @@ static bool inference(int const slot_index)
 
         if(irq)
         {
+            // Prepare irq_tokens:
+
+            // At least, if SPM vocabulary is used and to-be-tokenized string is
+            // not empty, the tokenizer may adds a space character as prefix
+            // before the created tokens.
+            // Since the interrupt can happen at each position of the LLM's
+            // response, that should not be a problem, here.
+            //
+            // Use magic (or empty) str. & EOT (or EOS), only.
+            std::vector<int> irq_tokens = mt_llm_ctx_tokenize(
+                *s_slots[slot_index]->ctx,
+                "", // E.g. "..." can cause an LLM to also use "..." just "for fun"!
+                false); // No adding of BOS and/or EOS [is both model-dependent].
+
+            // TODO: On Android, for the following models, this should be the
+            //       other way around, as it seems (try EOS first, then EOT):
+            //       - EXAONE 3.0 7.8B Instruct
+            //
+            // See: https://github.com/ggerganov/llama.cpp/pull/8296
+            //
+            llama_token const tok_eot = llama_vocab_eot(vocab);
+            //
+            assert(tok_eot != -1 || llama_vocab_eos(vocab) != -1);
+            irq_tokens.push_back(tok_eot == -1 ? llama_vocab_eos(vocab) : tok_eot);
+
+            // Decode IRQ tokens:
+
             int irq_decoded_count = 0;
 
             s_slots[slot_index]->last_tok_type = MT_TOK_TYPE_IRQ;
