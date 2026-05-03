@@ -240,10 +240,12 @@ bool mt_llm_ctx_decode(
     llama_sampler& sampler,
     int const existing_token_count,
     std::vector<int> const & tokens,
+    int& decoded_token_count,
     bool(*callback)(llama_token, std::string const &, std::vector<float> const &))
 {
     int const tok_count = static_cast<int>(tokens.size());
 
+    decoded_token_count = 0;
     for(int i = 0; i < tok_count; ++i)
     {
         if(!decode_single_token(
@@ -256,6 +258,8 @@ bool mt_llm_ctx_decode(
             return false; // (called function logged)
         }
 
+        ++decoded_token_count;
+
         if(callback != nullptr)
         {
             callback( // (return value ignored)
@@ -264,6 +268,7 @@ bool mt_llm_ctx_decode(
                 std::vector<float>());
         }
     }
+    assert(decoded_token_count == tok_count);
     return true;
 }
 
@@ -287,12 +292,13 @@ std::vector<int> mt_llm_ctx_tokenize(
                //    special tokens.
 }
 
-int mt_llm_ctx_decode(
-        llama_context& ctx,
-        llama_sampler& sampler,
-        int const existing_token_count,
-        char const * const str,
-        bool(*callback)(llama_token, std::string const &, std::vector<float> const &))
+bool mt_llm_ctx_decode(
+    llama_context& ctx,
+    llama_sampler& sampler,
+    int const existing_token_count,
+    char const * const str,
+    int& decoded_token_count,
+    bool(*callback)(llama_token, std::string const &, std::vector<float> const &))
 {
     // Tokenize the given string (while automatically adding a BOS token at the
     // beginning, if required by the model and the context is empty):
@@ -319,17 +325,17 @@ int mt_llm_ctx_decode(
     }
 
     // Feed the model's decoder with the tokens:
+    bool const ret_val = mt_llm_ctx_decode(
+        ctx,
+        sampler,
+        existing_token_count,
+        tokens,
+        decoded_token_count,
+        callback);
 
-    if(!mt_llm_ctx_decode(
-            ctx,
-            sampler,
-            existing_token_count,
-            tokens,
-            callback))
-    {
-        return -1;
-    }
-    return static_cast<int>(tokens.size());
+    assert(0 <= decoded_token_count);
+    assert(!ret_val || decoded_token_count == static_cast<int>(tokens.size()));
+    return ret_val;
 }
 
 llama_context* mt_llm_ctx_create(

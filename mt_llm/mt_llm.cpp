@@ -212,29 +212,38 @@ static bool callback_handler(
  * 
  * - "Decode" as in using the decoder of the LLM architecture to add to its
  *   context.
+ * - Slot's token count will hold the correct value on exit, even, if the
+ *   decode failed (e.g. not all tokens could be decoded, because of full
+ *   context).
  */
 static bool decode(
     char const * const str, int const tok_type, int const slot_index)
 {
     assert(slot_index == 0 || slot_index == 1);
 
+    int str_tok_cnt = 0;
+
     s_slots[slot_index]->last_tok_type = tok_type;
 
     s_active_slot_index = slot_index;
-    int const str_tok_cnt = mt_llm_ctx_decode(
-            *s_slots[slot_index]->ctx,
-            *s_slots[slot_index]->sampler,
-            s_slots[slot_index]->tok_cnt,
-            str,
-            callback_handler);
 
-    if(str_tok_cnt < 0)
+    bool const ret_val = mt_llm_ctx_decode(
+        *s_slots[slot_index]->ctx,
+        *s_slots[slot_index]->sampler,
+        s_slots[slot_index]->tok_cnt,
+        str,
+        str_tok_cnt,
+        callback_handler);
+
+    // Will be correct on error, too:
+    assert(0 <= str_tok_cnt);
+    s_slots[slot_index]->tok_cnt += str_tok_cnt;
+
+    if(!ret_val)
     {
         MT_LOG_ERR("Decoding!\n");
-        return false;
     }
-    s_slots[slot_index]->tok_cnt += str_tok_cnt;
-    return true;
+    return ret_val;
 }
 
 static bool decode_some_prompt_end_delim_with_thinking(
@@ -535,7 +544,10 @@ static bool inference(int const slot_index)
     assert(slot_index == 0 || slot_index == 1);
     assert(s_slots[slot_index] != nullptr);
 
-    int n_cur = 0;
+    MT_LOG("Initial token count: %d\n", s_slots[slot_index]->tok_cnt);
+
+    // For performance measurement, only.
+    int const initial_tok_cnt = s_slots[slot_index]->tok_cnt;
 
     bool irq = false,
         is_thinking = // See decoding of system and "normal" prompt end delim.
@@ -577,37 +589,42 @@ static bool inference(int const slot_index)
     irq_tokens.push_back(tok_eot == -1 ? llama_vocab_eos(vocab) : tok_eot);
 
     int64_t const t_main_start = ggml_time_us();
-
-    // E.g.:
-    //
-    // Existing token count: 30 <=> Indices  0...29 => First new token index: 30
-    //
-    int const first_new_tok_index = s_slots[slot_index]->tok_cnt;
     int const n_ctx = static_cast<int>(llama_n_ctx(s_slots[slot_index]->ctx));
-
     bool const is_thinker =
         s_slots[slot_index]->mt_p->think_beg_delim[0] != '\0';
 
-    for(n_cur = first_new_tok_index; n_cur < n_ctx; ++n_cur)
+    // E.g.:
+    // Existing token count: 30 <=> Indices  0...29 => First new token index: 30
+    while(s_slots[slot_index]->tok_cnt < n_ctx)
     {
         int is_think_tok_type = -1; // -1 == No thinking token type at all.
 
         if(irq)
         {
-            s_slots[slot_index]->last_tok_type = MT_TOK_TYPE_IRQ;
+            int irq_decoded_count = 0;
 
+            s_slots[slot_index]->last_tok_type = MT_TOK_TYPE_IRQ;
             s_active_slot_index = slot_index;
-            if(!mt_llm_ctx_decode(
-                    *s_slots[slot_index]->ctx,
-                    *s_slots[slot_index]->sampler,
-                    n_cur,
-                    irq_tokens,
-                    callback_handler))
+            
+            bool const irq_decode_succeeded = mt_llm_ctx_decode(
+                *s_slots[slot_index]->ctx,
+                *s_slots[slot_index]->sampler,
+                s_slots[slot_index]->tok_cnt,
+                irq_tokens,
+                irq_decoded_count,
+                callback_handler);
+
+            // Will be correct on error, too:
+            assert(0 <= irq_decoded_count);
+            assert(
+                !irq_decode_succeeded
+                    || irq_decoded_count == static_cast<int>(irq_tokens.size()));
+            s_slots[slot_index]->tok_cnt += irq_decoded_count;
+
+            if(!irq_decode_succeeded)
             {
                 MT_LOG_ERR("Decoding IRQ tokens!\n");
-                return false;
             }
-            n_cur += static_cast<int>(irq_tokens.size());
             break;
         }
 
@@ -729,42 +746,51 @@ static bool inference(int const slot_index)
         //
         // Otherwise: The model is not a thinker.
 
-        if(!mt_llm_ctx_decode(
+        {
+            int new_tok_decoded_cnt = 0;
+            bool const new_tok_decode_succeeded = mt_llm_ctx_decode(
                 *s_slots[slot_index]->ctx,
                 *s_slots[slot_index]->sampler,
-                n_cur,
+                s_slots[slot_index]->tok_cnt,
                 { new_tok_id }, // Implicit conversion.
-                nullptr)) // No callback, here!
-        {
-            MT_LOG_ERR("Decoding inferred token!\n");
-            return false;
+                new_tok_decoded_cnt,
+                nullptr); // No callback, here!
+
+            // Will be correct on error, too:
+            assert(
+                (!new_tok_decode_succeeded && new_tok_decoded_cnt == 0)
+                    || (new_tok_decode_succeeded && new_tok_decoded_cnt == 1));
+            s_slots[slot_index]->tok_cnt += new_tok_decoded_cnt;
+
+            if(!new_tok_decode_succeeded)
+            {
+                MT_LOG_ERR("Decoding inferred token!\n");
+                break;
+            }
         }
 
         // Break, if some kind of EOG token was generated:
         if (new_tok_is_eog)
         {
-            ++n_cur;
+            assert(
+                s_slots[slot_index]->last_tok_type == MT_TOK_TYPE_SAMPLED_EOG);
             break;
         }
     }
-    if(n_ctx <= n_cur)
+
     {
-        MT_LOG_ERR("Last token was no EOG (ctx. length reached?)\n");
-        return false;
+        float const t_decode_seconds =
+            static_cast<float>(ggml_time_us() - t_main_start) / 1000000.0f;
+        int const n_decode = s_slots[slot_index]->tok_cnt - initial_tok_cnt;
+
+        MT_LOG(
+            "Decoded %d tokens in %.2fs, speed: %.2f t/s.\n",
+            n_decode,
+            t_decode_seconds,
+            static_cast<float>(n_decode) / t_decode_seconds);
     }
 
-    int64_t const t_main_end = ggml_time_us();
-    int const n_decode = n_cur - s_slots[slot_index]->tok_cnt;
-
-    MT_LOG(
-        "Decoded %d tokens in %.2fs, speed: %.2f t/s.\n",
-        n_decode,
-        static_cast<float>(t_main_end - t_main_start) / 1000000.0f,
-        static_cast<float>(n_decode)
-            / (static_cast<float>(t_main_end - t_main_start) / 1000000.0f));
-
-    s_slots[slot_index]->tok_cnt = n_cur;
-    return true;
+    return s_slots[slot_index]->last_tok_type == MT_TOK_TYPE_SAMPLED_EOG;
 }
 
 /**
