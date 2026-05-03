@@ -535,7 +535,6 @@ static bool inference(int const slot_index)
     assert(slot_index == 0 || slot_index == 1);
     assert(s_slots[slot_index] != nullptr);
 
-    llama_batch batch;
     int n_cur = 0;
 
     bool irq = false,
@@ -579,8 +578,6 @@ static bool inference(int const slot_index)
 
     int64_t const t_main_start = ggml_time_us();
 
-    batch = llama_batch_init(1, 0, 1); // Needs to be freed!
-
     // E.g.:
     //
     // Existing token count: 30 <=> Indices  0...29 => First new token index: 30
@@ -608,10 +605,9 @@ static bool inference(int const slot_index)
                     callback_handler))
             {
                 MT_LOG_ERR("Decoding IRQ tokens!\n");
-                llama_batch_free(batch);
                 return false;
             }
-            n_cur += static_cast<int>(irq_tokens.size()); // TODO: NOT caring about maximum count..!
+            n_cur += static_cast<int>(irq_tokens.size());
             break;
         }
 
@@ -733,24 +729,16 @@ static bool inference(int const slot_index)
         //
         // Otherwise: The model is not a thinker.
 
-        // Current/single token per "batch":
-
-        common_batch_clear(batch);
-        common_batch_add(batch, new_tok_id, n_cur, { 0 }, true);
-
-        int32_t const llama_decode_res = llama_decode(
-            s_slots[slot_index]->ctx, batch);
-
-        if (llama_decode_res != 0)
+        if(!mt_llm_ctx_decode(
+                *s_slots[slot_index]->ctx,
+                *s_slots[slot_index]->sampler,
+                n_cur,
+                { new_tok_id }, // Implicit conversion.
+                nullptr)) // No callback, here!
         {
-            MT_LOG_ERR(
-                "Decoding current \"batch\" (error code %d)!\n",
-                static_cast<int>(llama_decode_res));
-            llama_batch_free(batch);
+            MT_LOG_ERR("Decoding inferred token!\n");
             return false;
         }
-
-        llama_sampler_accept(s_slots[slot_index]->sampler, new_tok_id);
 
         // Break, if some kind of EOG token was generated:
         if (new_tok_is_eog)
@@ -759,8 +747,6 @@ static bool inference(int const slot_index)
             break;
         }
     }
-    llama_batch_free(batch);
-
     if(n_ctx <= n_cur)
     {
         MT_LOG_ERR("Last token was no EOG (ctx. length reached?)\n");
