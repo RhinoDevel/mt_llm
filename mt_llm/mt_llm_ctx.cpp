@@ -300,10 +300,11 @@ bool mt_llm_ctx_decode(
     int& decoded_token_count,
     bool(*callback)(llama_token, std::string const &, std::vector<float> const &))
 {
-    // Tokenize the given string (while automatically adding a BOS token at the
-    // beginning, if required by the model and the context is empty):
-
-    std::vector<llama_token> tokens = mt_llm_ctx_tokenize(ctx, str, false);
+    // Tokenize the given string:
+    std::vector<llama_token> tokens = mt_llm_ctx_tokenize(
+        ctx,
+        str,
+        false); // No adding of BOS and/or EOS [is both model-dependent].
 
 //#ifndef NDEBUG
 //    // E.g. to compare with:
