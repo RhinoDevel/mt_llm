@@ -526,7 +526,23 @@ static bool decode_follow_up_query(
         s_slots[slot_index]->mt_p->prompt_end_delim, slot_index);
 }
 
-static std::vector<int> create_irq_tokens(
+static llama_token get_assistant_tok_eog(llama_model const &model)
+{
+    llama_vocab const * const vocab = llama_model_get_vocab(&model);
+
+    // TODO: On Android, for the following models, this should be the
+    //       other way around, as it seems (try EOS first, then EOT):
+    //       - EXAONE 3.0 7.8B Instruct
+    //
+    // See: https://github.com/ggerganov/llama.cpp/pull/8296
+
+    llama_token const tok_eot = llama_vocab_eot(vocab);
+
+    assert(tok_eot != -1 || llama_vocab_eos(vocab) != -1);
+    return tok_eot == -1 ? llama_vocab_eos(vocab) : tok_eot;
+}
+
+static std::vector<llama_token> create_irq_tokens(
     llama_context const &ctx, llama_model const &model)
 {
     // At least, if SPM vocabulary is used and to-be-tokenized string is not
@@ -536,23 +552,14 @@ static std::vector<int> create_irq_tokens(
     // that should not be a problem, here.
     //
     // Use magic (or empty) str. & EOT (or EOS), only.
-    std::vector<int> ret_val = mt_llm_ctx_tokenize(
+    std::vector<llama_token> ret_val = mt_llm_ctx_tokenize(
         ctx,
         "", // E.g. "..." can cause an LLM to also use "..." just "for fun"!
         false); // No adding of BOS and/or EOS [is both model-dependent].
 
-    llama_vocab const * const vocab = llama_model_get_vocab(&model);
+    llama_token const eog_to_use = get_assistant_tok_eog(model);
 
-    // TODO: On Android, for the following models, this should be the
-    //       other way around, as it seems (try EOS first, then EOT):
-    //       - EXAONE 3.0 7.8B Instruct
-    //
-    // See: https://github.com/ggerganov/llama.cpp/pull/8296
-    //
-    llama_token const tok_eot = llama_vocab_eot(vocab);
-    //
-    assert(tok_eot != -1 || llama_vocab_eos(vocab) != -1);
-    ret_val.push_back(tok_eot == -1 ? llama_vocab_eos(vocab) : tok_eot);
+    ret_val.push_back(eog_to_use);
 
     return ret_val;
 }
@@ -956,7 +963,7 @@ MT_EXPORT_LLM_API int mt_llm_get_token_count(
         return -4;
     }
 
-    std::vector<int> const tokens = mt_llm_ctx_tokenize(
+    std::vector<llama_token> const tokens = mt_llm_ctx_tokenize(
         *s_slots[slot_index]->ctx, text, add_special);
 
     return static_cast<int>(tokens.size());
