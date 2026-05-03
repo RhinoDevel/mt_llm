@@ -539,61 +539,84 @@ static bool decode_follow_up_query(
         s_slots[slot_index]->mt_p->prompt_end_delim, slot_index);
 }
 
+static std::vector<int> create_irq_tokens(
+    llama_context const &ctx, llama_model const &model)
+{
+    // At least, if SPM vocabulary is used and to-be-tokenized string is not
+    // empty, the tokenizer may adds a space character as prefix before the
+    // created tokens.
+    // Since the interrupt can happen at each position of the LLM's response,
+    // that should not be a problem, here.
+    //
+    // Use magic (or empty) str. & EOT (or EOS), only.
+    std::vector<int> ret_val = mt_llm_ctx_tokenize(
+        ctx,
+        "", // E.g. "..." can cause an LLM to also use "..." just "for fun"!
+        false); // No adding of BOS and/or EOS [is both model-dependent].
+
+    llama_vocab const * const vocab = llama_model_get_vocab(&model);
+
+    // TODO: On Android, for the following models, this should be the
+    //       other way around, as it seems (try EOS first, then EOT):
+    //       - EXAONE 3.0 7.8B Instruct
+    //
+    // See: https://github.com/ggerganov/llama.cpp/pull/8296
+    //
+    llama_token const tok_eot = llama_vocab_eot(vocab);
+    //
+    assert(tok_eot != -1 || llama_vocab_eos(vocab) != -1);
+    ret_val.push_back(tok_eot == -1 ? llama_vocab_eos(vocab) : tok_eot);
+
+    return ret_val;
+}
+
 static bool inference(int const slot_index)
 {
     assert(slot_index == 0 || slot_index == 1);
     assert(s_slots[slot_index] != nullptr);
 
-    // For performance measurement, only.
+    // For performance measurement:
+    int64_t const t_main_start = ggml_time_us();
     int const initial_tok_cnt = s_slots[slot_index]->tok_cnt;
 
-    bool irq = false,
-        is_thinking = // See decoding of system and "normal" prompt end delim.
-            s_slots[slot_index]->last_tok_type == MT_TOK_TYPE_THINK_BEGIN
-                || s_slots[slot_index]->last_tok_type == MT_TOK_TYPE_THINK_TEXT;
+    bool irq = false; // Callback sets this to true, if interrupt is requested.
+    bool is_thinking = false; // True, if currently inferring thinking tokens.
+    std::vector<float> dig_probs;
 
+    int const max_tok_cnt = // Maximum count of tokens the context can hold.
+        static_cast<int>(llama_n_ctx(s_slots[slot_index]->ctx));
+    bool const is_thinker = // Can the model used think/reason?
+        s_slots[slot_index]->mt_p->think_beg_delim[0] != '\0';
     llama_vocab const * const vocab =
         llama_model_get_vocab(s_slots[slot_index]->model->model);
 
-    std::vector<float> dig_probs;
+    is_thinking = // See decoding of system and "normal" prompt end delim.
+        s_slots[slot_index]->last_tok_type == MT_TOK_TYPE_THINK_BEGIN
+            || s_slots[slot_index]->last_tok_type == MT_TOK_TYPE_THINK_TEXT;
 
-    int64_t const t_main_start = ggml_time_us();
-    int const n_ctx = static_cast<int>(llama_n_ctx(s_slots[slot_index]->ctx));
-    bool const is_thinker =
-        s_slots[slot_index]->mt_p->think_beg_delim[0] != '\0';
-
-    // E.g.:
-    // Existing token count: 30 <=> Indices  0...29 => First new token index: 30
-    while(s_slots[slot_index]->tok_cnt < n_ctx)
+    while(s_slots[slot_index]->tok_cnt < max_tok_cnt)
     {
         int is_think_tok_type = -1; // -1 == No thinking token type at all.
 
         if(irq)
         {
-            // Prepare irq_tokens:
+            std::vector<int> irq_tokens = create_irq_tokens(
+                *s_slots[slot_index]->ctx, *s_slots[slot_index]->model->model);
 
-            // At least, if SPM vocabulary is used and to-be-tokenized string is
-            // not empty, the tokenizer may adds a space character as prefix
-            // before the created tokens.
-            // Since the interrupt can happen at each position of the LLM's
-            // response, that should not be a problem, here.
-            //
-            // Use magic (or empty) str. & EOT (or EOS), only.
-            std::vector<int> irq_tokens = mt_llm_ctx_tokenize(
-                *s_slots[slot_index]->ctx,
-                "", // E.g. "..." can cause an LLM to also use "..." just "for fun"!
-                false); // No adding of BOS and/or EOS [is both model-dependent].
+            int const tokens_left = max_tok_cnt - s_slots[slot_index]->tok_cnt;
 
-            // TODO: On Android, for the following models, this should be the
-            //       other way around, as it seems (try EOS first, then EOT):
-            //       - EXAONE 3.0 7.8B Instruct
-            //
-            // See: https://github.com/ggerganov/llama.cpp/pull/8296
-            //
-            llama_token const tok_eot = llama_vocab_eot(vocab);
-            //
-            assert(tok_eot != -1 || llama_vocab_eos(vocab) != -1);
-            irq_tokens.push_back(tok_eot == -1 ? llama_vocab_eos(vocab) : tok_eot);
+            assert(1 <= tokens_left); // At least one token place must be left.
+            if(tokens_left < irq_tokens.size())
+            {
+                MT_LOG("Not enough space left in context for all IRQ tokens, adding last IRQ token (the EOG token to use), only..");
+                
+                int const irq_eog_tok = irq_tokens.back();
+
+                assert(llama_vocab_is_eog(vocab, irq_eog_tok));
+
+                irq_tokens.clear();
+                irq_tokens.push_back(irq_eog_tok);
+            }
 
             // Decode IRQ tokens:
 
