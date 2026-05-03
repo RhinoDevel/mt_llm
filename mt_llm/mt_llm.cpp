@@ -526,7 +526,9 @@ static bool decode_follow_up_query(
         s_slots[slot_index]->mt_p->prompt_end_delim, slot_index);
 }
 
-static llama_token get_assistant_tok_eog(llama_model const &model)
+/** Return the EOG token used by the model after its responses.
+ */
+static llama_token get_response_tok_eog(llama_model const &model)
 {
     llama_vocab const * const vocab = llama_model_get_vocab(&model);
 
@@ -557,7 +559,7 @@ static std::vector<llama_token> create_irq_tokens(
         "", // E.g. "..." can cause an LLM to also use "..." just "for fun"!
         false); // No adding of BOS and/or EOS [is both model-dependent].
 
-    llama_token const eog_to_use = get_assistant_tok_eog(model);
+    llama_token const eog_to_use = get_response_tok_eog(model);
 
     ret_val.push_back(eog_to_use);
 
@@ -1061,6 +1063,80 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_state_restore(
     s_slots[slot_index]->last_tok_type = state->last_tok_type;
     s_slots[slot_index]->tok_cnt = state->tok_cnt;
     MT_LOG("Successfully restored %zu bytes from state to LLM memory (tok. count: %d, last tok. type: %d, slot index: %d).\n", state->size, state->tok_cnt, state->last_tok_type, slot_index);
+    return true;
+}
+
+MT_EXPORT_LLM_API bool __stdcall mt_llm_decode_response(
+    char const * const response, int const slot_index)
+{
+    std::vector<llama_token> tokens;
+    int decoded_token_cnt = 0;
+
+    if(slot_index != 0 && slot_index != 1)
+    {
+        MT_LOG_ERR("Unsupported slot index given, doing nothing.\n");
+        return false;
+    }
+
+    if(s_slots[slot_index] == nullptr)
+    {
+        MT_LOG_ERR("Not intialized!\n");
+        return false;
+    }
+
+    if(s_slots[slot_index]->mt_p->emb_or_rerank != 0)
+    {
+        MT_LOG_ERR("Configured for embeddings creation or reranking usage!\n");
+        return false;
+    }
+
+    assert(s_slots[slot_index]->mt_p != nullptr);
+    assert(s_slots[slot_index]->model != nullptr);
+    assert(s_slots[slot_index]->ctx != nullptr);
+    assert(s_slots[slot_index]->sampler != nullptr); // Alth. not needed, here..
+
+    if(response == nullptr)
+    {
+        MT_LOG_ERR("No response given (is NULL), doing nothing.\n");
+        return false;
+    }
+
+    s_active_slot_index = slot_index;
+
+    tokens = mt_llm_ctx_tokenize(*s_slots[slot_index]->ctx, response, false);
+    s_slots[slot_index]->last_tok_type =
+        MT_TOK_TYPE_SAMPLED_NON_EOG_NON_CONTROL; // Not really sampled here..
+    if(!mt_llm_ctx_decode(
+            *s_slots[slot_index]->ctx,
+            *s_slots[slot_index]->sampler,
+            s_slots[slot_index]->tok_cnt,
+            tokens,
+            decoded_token_cnt,
+            callback_handler))
+    {
+        MT_LOG_ERR("Decoding (given) response failed!\n");
+        return false;
+    }
+    assert(decoded_token_cnt == static_cast<int>(tokens.size()));
+
+    decoded_token_cnt = 0;
+    tokens.clear();
+    tokens.push_back(get_response_tok_eog(*s_slots[slot_index]->model->model));
+    s_slots[slot_index]->last_tok_type =
+        MT_TOK_TYPE_SAMPLED_EOG; // Not really sampled here..
+    if(!mt_llm_ctx_decode(
+            *s_slots[slot_index]->ctx,
+            *s_slots[slot_index]->sampler,
+            s_slots[slot_index]->tok_cnt,
+            tokens,
+            decoded_token_cnt,
+            callback_handler))
+    {
+        MT_LOG_ERR("Decoding (given) response's EOG token failed!\n");
+        return false;
+    }
+    assert(decoded_token_cnt == static_cast<int>(tokens.size())/*1*/);
+
     return true;
 }
 

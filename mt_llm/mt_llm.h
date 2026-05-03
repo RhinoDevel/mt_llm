@@ -63,6 +63,20 @@ MT_EXPORT_LLM_API struct mt_llm_state * __stdcall mt_llm_state_create(
 MT_EXPORT_LLM_API bool __stdcall mt_llm_state_restore(
     struct mt_llm_state const * const state, int const slot_index);
 
+/** Add ("decode") given text to the context, as if it were a response generated
+ *  by the model.
+ * 
+ *  - Makes sense directly after a prompt_template.prompt_end_delim (see
+ *    mt_lm_model.cpp), only (which is not checked, here).
+ *  - Appends the EOG token automatically.
+ * 
+ *  - Slot index may be 0 or 1.
+ *  - Returns false and does nothing, if not initialized or invalid slot index
+ *    or configured for embeddings creation.
+ */
+MT_EXPORT_LLM_API bool __stdcall mt_llm_decode_response(
+    char const * const response, int const slot_index);
+
 /**
  * - Slot index may be 0 or 1.
  * 
