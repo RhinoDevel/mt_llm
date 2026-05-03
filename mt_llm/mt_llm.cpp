@@ -692,6 +692,7 @@ static bool inference(int const slot_index)
 
         if(irq)
         {
+            // An interrupt of the inference was requested.
             decode_irq_tokens(slot_index); // Called function logs on error.
             break;
         }
