@@ -570,6 +570,63 @@ static std::vector<int> create_irq_tokens(
     return ret_val;
 }
 
+static void decode_irq_tokens(int const slot_index)
+{
+    assert(slot_index == 0 || slot_index == 1);
+    assert(s_slots[slot_index] != nullptr);
+
+    // Prepare IRQ tokens:
+
+    std::vector<int> irq_tokens = create_irq_tokens(
+        *s_slots[slot_index]->ctx, *s_slots[slot_index]->model->model);
+    int irq_decoded_cnt = 0;
+
+    int const max_tok_cnt = // Maximum count of tokens the context can hold.
+        static_cast<int>(llama_n_ctx(s_slots[slot_index]->ctx));
+    int const tokens_left = max_tok_cnt - s_slots[slot_index]->tok_cnt;
+
+    assert(1 <= tokens_left); // At least one token place must be left.
+    if(tokens_left < irq_tokens.size())
+    {
+        MT_LOG("Not enough space left in context for all IRQ tokens, adding last IRQ token (the EOG token to use), only..");
+
+        int const irq_eog_tok = irq_tokens.back();
+
+        assert(
+            llama_vocab_is_eog(
+                llama_model_get_vocab(s_slots[slot_index]->model->model),
+                irq_eog_tok));
+
+        irq_tokens.clear();
+        irq_tokens.push_back(irq_eog_tok);
+    }
+
+    // Decode IRQ tokens:
+
+    s_slots[slot_index]->last_tok_type = MT_TOK_TYPE_IRQ;
+    s_active_slot_index = slot_index;
+
+    bool const irq_decode_succeeded = mt_llm_ctx_decode(
+        *s_slots[slot_index]->ctx,
+        *s_slots[slot_index]->sampler,
+        s_slots[slot_index]->tok_cnt,
+        irq_tokens,
+        irq_decoded_cnt,
+        callback_handler);
+
+    // Will be correct on error, too:
+    assert(0 <= irq_decoded_cnt);
+    assert(
+        !irq_decode_succeeded
+            || irq_decoded_cnt == static_cast<int>(irq_tokens.size()));
+    s_slots[slot_index]->tok_cnt += irq_decoded_cnt;
+
+    if(!irq_decode_succeeded)
+    {
+        MT_LOG_ERR("Decoding IRQ tokens!\n");
+    }
+}
+
 static bool inference(int const slot_index)
 {
     assert(slot_index == 0 || slot_index == 1);
@@ -596,54 +653,13 @@ static bool inference(int const slot_index)
 
     while(s_slots[slot_index]->tok_cnt < max_tok_cnt)
     {
+        // Space for at least one token is left in context, if getting here.
+
         int is_think_tok_type = -1; // -1 == No thinking token type at all.
 
         if(irq)
         {
-            std::vector<int> irq_tokens = create_irq_tokens(
-                *s_slots[slot_index]->ctx, *s_slots[slot_index]->model->model);
-
-            int const tokens_left = max_tok_cnt - s_slots[slot_index]->tok_cnt;
-
-            assert(1 <= tokens_left); // At least one token place must be left.
-            if(tokens_left < irq_tokens.size())
-            {
-                MT_LOG("Not enough space left in context for all IRQ tokens, adding last IRQ token (the EOG token to use), only..");
-                
-                int const irq_eog_tok = irq_tokens.back();
-
-                assert(llama_vocab_is_eog(vocab, irq_eog_tok));
-
-                irq_tokens.clear();
-                irq_tokens.push_back(irq_eog_tok);
-            }
-
-            // Decode IRQ tokens:
-
-            int irq_decoded_count = 0;
-
-            s_slots[slot_index]->last_tok_type = MT_TOK_TYPE_IRQ;
-            s_active_slot_index = slot_index;
-            
-            bool const irq_decode_succeeded = mt_llm_ctx_decode(
-                *s_slots[slot_index]->ctx,
-                *s_slots[slot_index]->sampler,
-                s_slots[slot_index]->tok_cnt,
-                irq_tokens,
-                irq_decoded_count,
-                callback_handler);
-
-            // Will be correct on error, too:
-            assert(0 <= irq_decoded_count);
-            assert(
-                !irq_decode_succeeded
-                    || irq_decoded_count == static_cast<int>(irq_tokens.size()));
-            s_slots[slot_index]->tok_cnt += irq_decoded_count;
-
-            if(!irq_decode_succeeded)
-            {
-                MT_LOG_ERR("Decoding IRQ tokens!\n");
-            }
+            decode_irq_tokens(slot_index);
             break;
         }
 
