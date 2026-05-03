@@ -206,18 +206,19 @@ static bool callback_handler(
         dig_probs.empty() ? nullptr : dig_probs.data());
 }
 
-/** Add token representation of given string to context. Let the callback know
- *  that the tokens of this string are of given type. Increase overall token
- *  count.
+/** Add token representation of given string to context.
  * 
- * - "Decode" as in using the decoder of the LLM architecture to add to its
- *   context.
- * - Slot's token count will hold the correct value on exit, even, if the
- *   decode failed (e.g. not all tokens could be decoded, because of full
- *   context).
+ *  - "Decode" as in using the decoder of the LLM architecture to add to its
+ *    context.
+ *  - Slot's token count will hold the correct value on exit, even, if the
+ *    decode failed (e.g. not all tokens could be decoded, because of full
+ *    context).
  */
 static bool decode(
-    char const * const str, int const tok_type, int const slot_index)
+    char const * const str,
+    int const tok_type,
+    int const slot_index,
+    bool const use_callback)
 {
     assert(slot_index == 0 || slot_index == 1);
 
@@ -233,7 +234,7 @@ static bool decode(
         s_slots[slot_index]->tok_cnt,
         str,
         str_tok_cnt,
-        callback_handler);
+        use_callback ? callback_handler : nullptr);
 
     // Will be correct on error, too:
     assert(0 <= str_tok_cnt);
@@ -292,7 +293,10 @@ static bool decode_some_prompt_end_delim_with_thinking(
     }
 
     if(!decode(
-            str_some_prompt_end_delim.c_str(), MT_TOK_TYPE_DELIM, slot_index))
+            str_some_prompt_end_delim.c_str(),
+            MT_TOK_TYPE_DELIM,
+            slot_index,
+            true))
     {
         MT_LOG_ERR("Decoding some prompt end delimiter!\n");
         return false;
@@ -302,7 +306,8 @@ static bool decode_some_prompt_end_delim_with_thinking(
         if(!decode(
                 s_slots[slot_index]->mt_p->think_beg_delim,
                 MT_TOK_TYPE_THINK_BEGIN,
-                slot_index))
+                slot_index,
+                true))
         {
             MT_LOG_ERR("Decoding thinking prompt begin delimiter after some prompt!\n");
             return false;
@@ -325,7 +330,8 @@ static bool decode_some_prompt_end_delim_with_thinking(
                 decode_think_beg_delim
                     ? MT_TOK_TYPE_THINK_TEXT
                     : MT_TOK_TYPE_DELIM,
-                slot_index))
+                slot_index,
+                true))
         {
             MT_LOG_ERR("Decoding some prompt middle newlines!\n");
             return false;
@@ -336,7 +342,8 @@ static bool decode_some_prompt_end_delim_with_thinking(
         if(!decode(
                 s_slots[slot_index]->mt_p->think_end_delim,
                 MT_TOK_TYPE_THINK_END,
-                slot_index))
+                slot_index,
+                true))
         {
             MT_LOG_ERR("Decoding thinking prompt end delimiter after some prompt!\n");
             return false;
@@ -359,7 +366,8 @@ static bool decode_some_prompt_end_delim_with_thinking(
                 decode_think_beg_delim && !decode_think_end_delim
                     ? MT_TOK_TYPE_THINK_TEXT
                     : MT_TOK_TYPE_DELIM,
-                slot_index))
+                slot_index,
+                true))
         {
             MT_LOG_ERR("Decoding some prompt end delimiter's trailing newlines!\n");
             return false;
@@ -386,7 +394,8 @@ static bool decode_sys_prompt_end_delim(int const slot_index)
         if(!decode(
             s_slots[slot_index]->mt_p->sys_prompt_end_delim,
             MT_TOK_TYPE_DELIM,
-            slot_index))
+            slot_index,
+            true))
         {
             MT_LOG_ERR("Decoding system prompt end delimiter (1)!\n");
             return false;
@@ -409,7 +418,8 @@ static bool decode_initial_query(
     if(!decode(
             s_slots[slot_index]->mt_p->sys_prompt_beg_delim,
             MT_TOK_TYPE_DELIM,
-            slot_index))
+            slot_index,
+            true))
     {
         MT_LOG_ERR("Decoding system prompt begin delimiter!\n");
         return false;
@@ -417,7 +427,8 @@ static bool decode_initial_query(
     if(!decode(
             s_slots[slot_index]->mt_p->sys_prompt,
             MT_TOK_TYPE_SYS_PROMPT,
-            slot_index))
+            slot_index,
+            true))
     {
         MT_LOG_ERR("Decoding system prompt!\n");
         return false;
@@ -425,7 +436,8 @@ static bool decode_initial_query(
     if(!decode(
             s_slots[slot_index]->mt_p->sys_prompt_mid_delim,
             MT_TOK_TYPE_DELIM,
-            slot_index))
+            slot_index,
+            true))
     {
         MT_LOG_ERR("Decoding system prompt middle delimiter!\n");
         return false;
@@ -433,7 +445,8 @@ static bool decode_initial_query(
     if(!decode(
             prompt,
             MT_TOK_TYPE_PROMPT,
-            slot_index))
+            slot_index,
+            true))
     {
         MT_LOG_ERR("Decoding prompt!\n");
         return false;
@@ -471,7 +484,7 @@ static bool decode_prompt_and_sys_prompt_end_delim(
     assert(s_slots[slot_index]->mt_p->sys_prompt[0] != '\0');
     assert(prompt != nullptr && prompt[0] != '\0');
 
-    if(!decode(prompt, MT_TOK_TYPE_PROMPT, slot_index))
+    if(!decode(prompt, MT_TOK_TYPE_PROMPT, slot_index, true))
     {
         MT_LOG_ERR("Decoding prompt!\n");
         return false;
@@ -496,12 +509,13 @@ static bool decode_follow_up_query(
     if(!decode(
             s_slots[slot_index]->mt_p->prompt_beg_delim,
             MT_TOK_TYPE_DELIM,
-            slot_index))
+            slot_index,
+            true))
     {
         MT_LOG_ERR("Decoding prompt begin delimiter!\n");
         return false;
     }
-    if(!decode(prompt, MT_TOK_TYPE_PROMPT, slot_index))
+    if(!decode(prompt, MT_TOK_TYPE_PROMPT, slot_index, true))
     {
         MT_LOG_ERR("Decoding prompt!\n");
         return false;
@@ -515,7 +529,8 @@ static bool decode_follow_up_query(
         if(!decode(
                 s_slots[slot_index]->mt_p->prompt_end_delim,
                 MT_TOK_TYPE_DELIM,
-                slot_index))
+                slot_index,
+                true))
         {
             MT_LOG_ERR("Decoding prompt end delimiter (1)!\n");
             return false;
@@ -526,11 +541,16 @@ static bool decode_follow_up_query(
         s_slots[slot_index]->mt_p->prompt_end_delim, slot_index);
 }
 
-/** Return the EOG token used by the model after its responses.
+/** Return the EOG token's string representation (the EOG token that is used by
+ *  the model after a response).
  */
-static llama_token get_response_tok_eog(llama_model const &model)
+static std::string get_response_tok_eog_str(int const slot_index)
 {
-    llama_vocab const * const vocab = llama_model_get_vocab(&model);
+    assert(slot_index == 0 || slot_index == 1);
+    assert(s_slots[slot_index] != nullptr);
+
+    llama_vocab const * const vocab = llama_model_get_vocab(
+        s_slots[slot_index]->model->model);
 
     // TODO: On Android, for the following models, this should be the
     //       other way around, as it seems (try EOS first, then EOT):
@@ -541,29 +561,12 @@ static llama_token get_response_tok_eog(llama_model const &model)
     llama_token const tok_eot = llama_vocab_eot(vocab);
 
     assert(tok_eot != -1 || llama_vocab_eos(vocab) != -1);
-    return tok_eot == -1 ? llama_vocab_eos(vocab) : tok_eot;
-}
+    
+    llama_token const tok_eog = tok_eot == -1
+        ? llama_vocab_eos(vocab)
+        : tok_eot;
 
-static std::vector<llama_token> create_irq_tokens(
-    llama_context const &ctx, llama_model const &model)
-{
-    // At least, if SPM vocabulary is used and to-be-tokenized string is not
-    // empty, the tokenizer may adds a space character as prefix before the
-    // created tokens.
-    // Since the interrupt can happen at each position of the LLM's response,
-    // that should not be a problem, here.
-    //
-    // Use magic (or empty) str. & EOT (or EOS), only.
-    std::vector<llama_token> ret_val = mt_llm_ctx_tokenize(
-        ctx,
-        "", // E.g. "..." can cause an LLM to also use "..." just "for fun"!
-        false); // No adding of BOS and/or EOS [is both model-dependent].
-
-    llama_token const eog_to_use = get_response_tok_eog(model);
-
-    ret_val.push_back(eog_to_use);
-
-    return ret_val;
+    return mt_llm_ctx_get_piece_from(*s_slots[slot_index]->ctx, tok_eog);
 }
 
 /**
@@ -574,86 +577,44 @@ static void decode_irq_tokens(int const slot_index)
     assert(slot_index == 0 || slot_index == 1);
     assert(s_slots[slot_index] != nullptr);
 
-    // Prepare IRQ tokens:
+    // Adding EOG token, only (e.g. using "..." plus EOG token can trigger that
+    // the LLM also uses "..." in its responses).
 
-    std::vector<int> irq_tokens = create_irq_tokens(
-        *s_slots[slot_index]->ctx, *s_slots[slot_index]->model->model);
-    int irq_decoded_cnt = 0;
-
-    int const max_tok_cnt = // Maximum count of tokens the context can hold.
-        static_cast<int>(llama_n_ctx(s_slots[slot_index]->ctx));
-    int const tokens_left = max_tok_cnt - s_slots[slot_index]->tok_cnt;
-
-    assert(1 <= tokens_left); // At least one token place must be left.
-    if(tokens_left < irq_tokens.size())
+    if(!decode(
+            // Overdone token -> string -> token pipeline, but to be able to use
+            // decode() function, only:
+            get_response_tok_eog_str(slot_index).c_str(),
+            MT_TOK_TYPE_IRQ,
+            slot_index,
+            true))
     {
-        MT_LOG("Not enough space left in context for all IRQ tokens, adding last IRQ token (the EOG token to use), only..");
-
-        int const irq_eog_tok = irq_tokens.back();
-
-        assert(
-            llama_vocab_is_eog(
-                llama_model_get_vocab(s_slots[slot_index]->model->model),
-                irq_eog_tok));
-
-        irq_tokens.clear();
-        irq_tokens.push_back(irq_eog_tok);
-    }
-
-    // Decode IRQ tokens:
-
-    s_slots[slot_index]->last_tok_type = MT_TOK_TYPE_IRQ;
-    s_active_slot_index = slot_index;
-
-    bool const irq_decode_succeeded = mt_llm_ctx_decode(
-        *s_slots[slot_index]->ctx,
-        *s_slots[slot_index]->sampler,
-        s_slots[slot_index]->tok_cnt,
-        irq_tokens,
-        irq_decoded_cnt,
-        callback_handler);
-
-    // Will be correct on error, too:
-    assert(0 <= irq_decoded_cnt);
-    assert(
-        !irq_decode_succeeded
-            || irq_decoded_cnt == static_cast<int>(irq_tokens.size()));
-    s_slots[slot_index]->tok_cnt += irq_decoded_cnt;
-
-    if(!irq_decode_succeeded)
-    {
-        MT_LOG_ERR("Decoding IRQ tokens!\n");
+        MT_LOG_ERR("Decoding IRQ EOG token!\n");
     }
 }
 
 /**
  * - To be used by inference().
  */
-static bool decode_inferred_token(int const slot_index, int const new_tok_id)
+static bool decode_inferred_piece(
+    int const slot_index, char const * const piece)
 {
     assert(slot_index == 0 || slot_index == 1);
     assert(s_slots[slot_index] != nullptr);
+    assert(piece != nullptr);
+    assert(piece[0] != '\0');
 
-    int new_tok_decoded_cnt = 0;
-    bool const ret_val = mt_llm_ctx_decode(
-        *s_slots[slot_index]->ctx,
-        *s_slots[slot_index]->sampler,
-        s_slots[slot_index]->tok_cnt,
-        { new_tok_id }, // (implicit conversion)
-        new_tok_decoded_cnt,
-        nullptr); // No callback, here!
-
-    // Will be correct on error, too:
-    assert(
-        (!ret_val && new_tok_decoded_cnt == 0)
-            || (ret_val && new_tok_decoded_cnt == 1));
-    s_slots[slot_index]->tok_cnt += new_tok_decoded_cnt;
-
-    if(!ret_val)
+    if(!decode(
+            // Overdone token -> string -> token pipeline, but to be able to use
+            // decode() function, only:
+            piece,
+            s_slots[slot_index]->last_tok_type, // <- No change (see caller).
+            slot_index,
+            false))
     {
         MT_LOG_ERR("Decoding inferred token!\n");
+        return false;
     }
-    return ret_val;
+    return true;
 }
 
 static bool inference(int const slot_index)
@@ -811,12 +772,12 @@ static bool inference(int const slot_index)
         //
         // Otherwise: The model is not a thinker.
 
-        if(!decode_inferred_token(slot_index, new_tok_id))
+        if(!decode_inferred_piece(slot_index, piece.c_str()))
         {
             break; // Called function logged.
         }
 
-        // Break, if some kind of EOG token was generated:
+        // Break, if some kind of EOG token was generated.
         if (new_tok_is_eog)
         {
             assert(
@@ -1098,20 +1059,18 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_decode_response(
             response,
             // Not really sampled here..
             MT_TOK_TYPE_SAMPLED_NON_EOG_NON_CONTROL,
-            slot_index))
+            slot_index,
+            true))
     {
         MT_LOG_ERR("Decoding (given) response failed!\n");
         return false;
     }
 
     if(!decode(
-            mt_llm_ctx_get_piece_from( // Stupid, but to avoid redundant code..
-                *s_slots[slot_index]->ctx,
-                get_response_tok_eog(
-                    *s_slots[slot_index]->model->model))
-                        .c_str(),
+            get_response_tok_eog_str(slot_index).c_str(),
             MT_TOK_TYPE_SAMPLED_EOG, // Not really sampled here..
-            slot_index))
+            slot_index,
+            true))
     {
         MT_LOG_ERR("Decoding (given) response's EOG token failed!\n");
         return false;
