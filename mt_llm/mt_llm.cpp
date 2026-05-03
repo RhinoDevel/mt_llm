@@ -570,6 +570,9 @@ static std::vector<int> create_irq_tokens(
     return ret_val;
 }
 
+/**
+ * - To be used by inference().
+ */
 static void decode_irq_tokens(int const slot_index)
 {
     assert(slot_index == 0 || slot_index == 1);
@@ -627,6 +630,36 @@ static void decode_irq_tokens(int const slot_index)
     }
 }
 
+/**
+ * - To be used by inference().
+ */
+static bool decode_inferred_token(int const slot_index, int const new_tok_id)
+{
+    assert(slot_index == 0 || slot_index == 1);
+    assert(s_slots[slot_index] != nullptr);
+
+    int new_tok_decoded_cnt = 0;
+    bool const ret_val = mt_llm_ctx_decode(
+        *s_slots[slot_index]->ctx,
+        *s_slots[slot_index]->sampler,
+        s_slots[slot_index]->tok_cnt,
+        { new_tok_id }, // (implicit conversion)
+        new_tok_decoded_cnt,
+        nullptr); // No callback, here!
+
+    // Will be correct on error, too:
+    assert(
+        (!ret_val && new_tok_decoded_cnt == 0)
+            || (ret_val && new_tok_decoded_cnt == 1));
+    s_slots[slot_index]->tok_cnt += new_tok_decoded_cnt;
+
+    if(!ret_val)
+    {
+        MT_LOG_ERR("Decoding inferred token!\n");
+    }
+    return ret_val;
+}
+
 static bool inference(int const slot_index)
 {
     assert(slot_index == 0 || slot_index == 1);
@@ -659,7 +692,7 @@ static bool inference(int const slot_index)
 
         if(irq)
         {
-            decode_irq_tokens(slot_index);
+            decode_irq_tokens(slot_index); // Called function logs on error.
             break;
         }
 
@@ -781,27 +814,9 @@ static bool inference(int const slot_index)
         //
         // Otherwise: The model is not a thinker.
 
+        if(!decode_inferred_token(slot_index, new_tok_id))
         {
-            int new_tok_decoded_cnt = 0;
-            bool const new_tok_decode_succeeded = mt_llm_ctx_decode(
-                *s_slots[slot_index]->ctx,
-                *s_slots[slot_index]->sampler,
-                s_slots[slot_index]->tok_cnt,
-                { new_tok_id }, // Implicit conversion.
-                new_tok_decoded_cnt,
-                nullptr); // No callback, here!
-
-            // Will be correct on error, too:
-            assert(
-                (!new_tok_decode_succeeded && new_tok_decoded_cnt == 0)
-                    || (new_tok_decode_succeeded && new_tok_decoded_cnt == 1));
-            s_slots[slot_index]->tok_cnt += new_tok_decoded_cnt;
-
-            if(!new_tok_decode_succeeded)
-            {
-                MT_LOG_ERR("Decoding inferred token!\n");
-                break;
-            }
+            break; // Called function logged.
         }
 
         // Break, if some kind of EOG token was generated:
