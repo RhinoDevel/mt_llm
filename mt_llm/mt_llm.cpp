@@ -370,9 +370,6 @@ static bool decode_some_prompt_end_delim_with_thinking(
 }
 
 /**
- * - Just assumes that the context length is always long enough to hold the
- *   prompt to be decoded, here (no check..).
- * 
  * - Automatically detects optional "jumpstart" or disabling thinking/reasoning
  *   tokens at the end of the system prompt end delimiter.
  */
@@ -400,10 +397,6 @@ static bool decode_sys_prompt_end_delim(int const slot_index)
         s_slots[slot_index]->mt_p->sys_prompt_end_delim, slot_index);
 }
 
-/**
- * - Just assumes that the context length is always long enough to hold the
- *   prompt to be decoded, here (no check..).
- */
 static bool decode_initial_query(
     char const * const prompt,
     int const slot_index,
@@ -468,9 +461,6 @@ static bool decode_initial_query(
 }
 
 /**
- * - Just assumes that the context length is always long enough to hold the
- *   prompt to be decoded, here (no check..).
- * 
  * - Also see comment in decode_initial_query() about skip_sys_prompt_end_delim.
  */
 static bool decode_prompt_and_sys_prompt_end_delim(
@@ -494,9 +484,6 @@ static bool decode_prompt_and_sys_prompt_end_delim(
 }
 
 /**
- * - Just assumes that the context length is always long enough to hold the
- *   prompt to be decoded, here (no check..).
- * 
  * - Automatically detects optional "jumpstart" or disabling thinking/reasoning
  *   tokens at the end of the prompt end delimiter.
  */
