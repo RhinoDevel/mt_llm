@@ -177,6 +177,50 @@ static bool decode_single_token(
     return true;
 }
 
+/** Add given tokens to the context. Inform sampler about the new tokens. Call
+ *  callback (if given).
+ *
+ * - Decoded tokens counter will hold correct value on error, too.
+ * - Uses 1 as "batch" size.
+ * - Never applies grammar.
+ */
+static bool decode_tokens(
+    llama_context& ctx,
+    llama_sampler& sampler,
+    int const existing_token_count,
+    std::vector<llama_token> const & tokens,
+    int& decoded_token_count,
+    bool(*callback)(llama_token, std::string const &, std::vector<float> const &))
+{
+    int const tok_count = static_cast<int>(tokens.size());
+
+    decoded_token_count = 0;
+    for(int i = 0; i < tok_count; ++i)
+    {
+        if(!decode_single_token(
+            &ctx,
+            &sampler,
+            existing_token_count + i,
+            tokens[i],
+            i + 1 == tok_count))
+        {
+            return false; // (called function logged)
+        }
+
+        ++decoded_token_count;
+
+        if(callback != nullptr)
+        {
+            callback( // (return value ignored)
+                tokens[i],
+                mt_llm_ctx_get_piece_from(ctx, tokens[i]),
+                std::vector<float>());
+        }
+    }
+    assert(decoded_token_count == tok_count);
+    return true;
+}
+
 /*
     - Read this out from the GGUF file: tokenizer.ggml.add_bos_token
 
@@ -235,43 +279,6 @@ std::string mt_llm_ctx_get_piece_from(
         true); // Render special tokens, too (unknown or control attr.).
 }
 
-bool mt_llm_ctx_decode(
-    llama_context& ctx,
-    llama_sampler& sampler,
-    int const existing_token_count,
-    std::vector<llama_token> const & tokens,
-    int& decoded_token_count,
-    bool(*callback)(llama_token, std::string const &, std::vector<float> const &))
-{
-    int const tok_count = static_cast<int>(tokens.size());
-
-    decoded_token_count = 0;
-    for(int i = 0; i < tok_count; ++i)
-    {
-        if(!decode_single_token(
-                &ctx,
-                &sampler,
-                existing_token_count + i,
-                tokens[i],
-                i + 1 == tok_count))
-        {
-            return false; // (called function logged)
-        }
-
-        ++decoded_token_count;
-
-        if(callback != nullptr)
-        {
-            callback( // (return value ignored)
-                tokens[i],
-                mt_llm_ctx_get_piece_from(ctx, tokens[i]),
-                std::vector<float>());
-        }
-    }
-    assert(decoded_token_count == tok_count);
-    return true;
-}
-
 std::vector<llama_token> mt_llm_ctx_tokenize(
     llama_context const & ctx, char const * const str, bool const add_special)
 {
@@ -326,7 +333,7 @@ bool mt_llm_ctx_decode(
     }
 
     // Feed the model's decoder with the tokens:
-    bool const ret_val = mt_llm_ctx_decode(
+    bool const ret_val = decode_tokens(
         ctx,
         sampler,
         existing_token_count,

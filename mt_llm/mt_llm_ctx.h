@@ -16,21 +16,6 @@ std::vector<llama_token> mt_llm_ctx_tokenize(
 std::string mt_llm_ctx_get_piece_from(
     llama_context& ctx, llama_token const tok);
 
-/** Add given tokens to the context. Inform sampler about the new tokens. Call
- *  callback.
- * 
- * - Decoded tokens counter will hold correct value on error, too.
- * - Uses 1 as "batch" size.
- * - Never applies grammar.
- */
-bool mt_llm_ctx_decode(
-    llama_context& ctx,
-    llama_sampler& sampling_ctx,
-    int const existing_token_count,
-    std::vector<llama_token> const & tokens,
-    int& decoded_token_count,
-    bool(*callback)(llama_token, std::string const &, std::vector<float> const &));
-
 /**
  * - Prepends BOS token, if existing token count is zero and model meta data
  *   says so.
