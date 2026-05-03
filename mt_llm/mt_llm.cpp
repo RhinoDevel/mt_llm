@@ -544,8 +544,6 @@ static bool inference(int const slot_index)
     assert(slot_index == 0 || slot_index == 1);
     assert(s_slots[slot_index] != nullptr);
 
-    MT_LOG("Initial token count: %d\n", s_slots[slot_index]->tok_cnt);
-
     // For performance measurement, only.
     int const initial_tok_cnt = s_slots[slot_index]->tok_cnt;
 
