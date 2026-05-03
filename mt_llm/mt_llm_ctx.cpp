@@ -239,7 +239,7 @@ bool mt_llm_ctx_decode(
     llama_context& ctx,
     llama_sampler& sampler,
     int const existing_token_count,
-    std::vector<int> const & tokens,
+    std::vector<llama_token> const & tokens,
     int& decoded_token_count,
     bool(*callback)(llama_token, std::string const &, std::vector<float> const &))
 {
@@ -272,7 +272,7 @@ bool mt_llm_ctx_decode(
     return true;
 }
 
-std::vector<int> mt_llm_ctx_tokenize(
+std::vector<llama_token> mt_llm_ctx_tokenize(
     llama_context const & ctx, char const * const str, bool const add_special)
 {
     // From llama.cpp's llama.h, llama_tokenize():
@@ -303,7 +303,7 @@ bool mt_llm_ctx_decode(
     // Tokenize the given string (while automatically adding a BOS token at the
     // beginning, if required by the model and the context is empty):
 
-    std::vector<int> tokens = mt_llm_ctx_tokenize(ctx, str, false);
+    std::vector<llama_token> tokens = mt_llm_ctx_tokenize(ctx, str, false);
 
 //#ifndef NDEBUG
 //    // E.g. to compare with:
