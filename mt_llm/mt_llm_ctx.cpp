@@ -177,50 +177,6 @@ static bool decode_single_token(
     return true;
 }
 
-/** Add given tokens to the context. Inform sampler about the new tokens. Call
- *  callback (if given).
- *
- * - Decoded tokens counter will hold correct value on error, too.
- * - Uses 1 as "batch" size.
- * - Never applies grammar.
- */
-static bool decode_tokens(
-    llama_context& ctx,
-    llama_sampler& sampler,
-    int const existing_token_count,
-    std::vector<llama_token> const & tokens,
-    int& decoded_token_count,
-    bool(*callback)(llama_token, std::string const &, std::vector<float> const &))
-{
-    int const tok_count = static_cast<int>(tokens.size());
-
-    decoded_token_count = 0;
-    for(int i = 0; i < tok_count; ++i)
-    {
-        if(!decode_single_token(
-            &ctx,
-            &sampler,
-            existing_token_count + i,
-            tokens[i],
-            i + 1 == tok_count))
-        {
-            return false; // (called function logged)
-        }
-
-        ++decoded_token_count;
-
-        if(callback != nullptr)
-        {
-            callback( // (return value ignored)
-                tokens[i],
-                mt_llm_ctx_get_piece_from(ctx, tokens[i]),
-                std::vector<float>());
-        }
-    }
-    assert(decoded_token_count == tok_count);
-    return true;
-}
-
 /*
     - Read this out from the GGUF file: tokenizer.ggml.add_bos_token
 
@@ -279,6 +235,54 @@ std::string mt_llm_ctx_get_piece_from(
         true); // Render special tokens, too (unknown or control attr.).
 }
 
+bool mt_llm_ctx_decode(
+    llama_context& ctx,
+    llama_sampler& sampler,
+    int const existing_token_count,
+    std::vector<llama_token>& tokens,
+    int& decoded_token_count,
+    bool(*callback)(llama_token, std::string const &, std::vector<float> const &))
+{
+    llama_vocab const * const vocab =
+        llama_model_get_vocab(llama_get_model(&ctx));
+
+    if(existing_token_count == 0 && llama_vocab_get_add_bos(vocab))
+    {
+        // *** AUGMENTS ***
+
+        // A BOS token is wanted at the beginning.
+        tokens.insert(tokens.begin(), llama_vocab_bos(vocab));
+    }
+
+    int const tok_count = static_cast<int>(tokens.size());
+
+    decoded_token_count = 0;
+    for(int i = 0; i < tok_count; ++i)
+    {
+        if(!decode_single_token(
+            &ctx,
+            &sampler,
+            existing_token_count + i,
+            tokens[i],
+            i + 1 == tok_count))
+        {
+            return false; // (called function logged)
+        }
+
+        ++decoded_token_count;
+
+        if(callback != nullptr)
+        {
+            callback( // (return value ignored)
+                tokens[i],
+                mt_llm_ctx_get_piece_from(ctx, tokens[i]),
+                std::vector<float>());
+        }
+    }
+    assert(decoded_token_count == tok_count);
+    return true;
+}
+
 std::vector<llama_token> mt_llm_ctx_tokenize(
     llama_context const & ctx, char const * const str, bool const add_special)
 {
@@ -297,62 +301,6 @@ std::vector<llama_token> mt_llm_ctx_tokenize(
         add_special,
         true); // => Always parse string representations of special tokens to
                //    special tokens.
-}
-
-bool mt_llm_ctx_decode(
-    llama_context& ctx,
-    llama_sampler& sampler,
-    int const existing_token_count,
-    char const * const str,
-    int& decoded_token_count,
-    bool(*callback)(llama_token, std::string const &, std::vector<float> const &))
-{
-    assert(str != nullptr);
-
-    std::vector<llama_token> tokens;
-
-    if(str[0] == '\0')
-    {
-        MT_LOG("Warning: Received empty string.");
-    }
-
-    // Tokenize the given string:
-    tokens = mt_llm_ctx_tokenize(
-        ctx,
-        str,
-        false); // No adding of BOS and/or EOS [is both model-dependent].
-
-//#ifndef NDEBUG
-//    // E.g. to compare with:
-//    //     llama-completion.exe --model D:\LLMs\Qwen3.5-9B-Q4_K_M.gguf --verbose --jinja
-//    MT_LOG("Tokenized \"%s\" into:\n", str);
-//    for(int i = 0; i < static_cast<int>(tokens.size()); ++i)
-//    {
-//        MT_LOG("Index %d = %d\n", i, tokens[i]);
-//    }
-//#endif //NDEBUG
-
-    llama_vocab const * const vocab =
-        llama_model_get_vocab(llama_get_model(&ctx));
-
-    if(existing_token_count == 0 && llama_vocab_get_add_bos(vocab))
-    {
-        // A BOS token is wanted at the beginning.
-        tokens.insert(tokens.begin(), llama_vocab_bos(vocab));
-    }
-
-    // Feed the model's decoder with the tokens:
-    bool const ret_val = decode_tokens(
-        ctx,
-        sampler,
-        existing_token_count,
-        tokens,
-        decoded_token_count,
-        callback);
-
-    assert(0 <= decoded_token_count);
-    assert(!ret_val || decoded_token_count == static_cast<int>(tokens.size()));
-    return ret_val;
 }
 
 llama_context* mt_llm_ctx_create(

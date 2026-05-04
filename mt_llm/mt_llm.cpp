@@ -224,6 +224,28 @@ static bool decode(
     assert(slot_index == 0 || slot_index == 1);
 
     int str_tok_cnt = 0;
+    std::vector<llama_token> tokens;
+
+    if(str[0] == '\0')
+    {
+        MT_LOG("Warning: Received empty string.");
+    }
+
+    // Tokenize the given string:
+    tokens = mt_llm_ctx_tokenize(
+        *s_slots[slot_index]->ctx,
+        str,
+        false); // No adding of BOS and/or EOS [is both model-dependent].
+
+//#ifndef NDEBUG
+//    // E.g. to compare with:
+//    //     llama-completion.exe --model D:\LLMs\Qwen3.5-9B-Q4_K_M.gguf --verbose --jinja
+//    MT_LOG("Tokenized \"%s\" into:\n", str);
+//    for(int i = 0; i < static_cast<int>(tokens.size()); ++i)
+//    {
+//        MT_LOG("Index %d = %d\n", i, tokens[i]);
+//    }
+//#endif //NDEBUG
 
     s_slots[slot_index]->last_tok_type = tok_type;
 
@@ -233,12 +255,15 @@ static bool decode(
         *s_slots[slot_index]->ctx,
         *s_slots[slot_index]->sampler,
         s_slots[slot_index]->tok_cnt,
-        str,
+        tokens,
         str_tok_cnt,
         use_callback ? callback_handler : nullptr);
 
     // Will be correct on error, too:
     assert(0 <= str_tok_cnt);
+    // Works, because function called above insert a BOS token into the vector,
+    // if necessary:
+    assert(!ret_val || str_tok_cnt == static_cast<int>(tokens.size()));
     s_slots[slot_index]->tok_cnt += str_tok_cnt;
 
     if(!ret_val)
@@ -602,11 +627,8 @@ static bool decode_inferred_piece(
     assert(slot_index == 0 || slot_index == 1);
     assert(s_slots[slot_index] != nullptr);
     assert(piece != nullptr);
-    assert(piece[0] != '\0');
 
     if(!decode(
-            // Overdone token -> string -> token pipeline, but to be able to use
-            // decode() function, only:
             piece,
             s_slots[slot_index]->last_tok_type, // <- No change (see caller).
             slot_index,
