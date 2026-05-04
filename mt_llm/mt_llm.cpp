@@ -207,6 +207,50 @@ static bool callback_handler(
         dig_probs.empty() ? nullptr : dig_probs.data());
 }
 
+/** Add tokens to context.
+ *
+ *  - "Decode" as in using the decoder of the LLM architecture to add to its
+ *    context.
+ *  - Slot's token count will hold the correct value on exit, even, if the
+ *    decode failed (e.g. not all tokens could be decoded, because of full
+ *    context).
+ */
+static bool decode_tokens(
+    std::vector<llama_token>& tokens,
+    int const tok_type,
+    int const slot_index,
+    bool const use_callback)
+{
+    assert(slot_index == 0 || slot_index == 1);
+
+    int decoded_tok_cnt = 0;
+
+    s_slots[slot_index]->last_tok_type = tok_type;
+
+    s_active_slot_index = slot_index;
+
+    bool const ret_val = mt_llm_ctx_decode(
+        *s_slots[slot_index]->ctx,
+        *s_slots[slot_index]->sampler,
+        s_slots[slot_index]->tok_cnt,
+        tokens,
+        decoded_tok_cnt,
+        use_callback ? callback_handler : nullptr);
+
+    // Will be correct on error, too:
+    assert(0 <= decoded_tok_cnt);
+    // Works, because function called above insert a BOS token into the vector,
+    // if necessary:
+    assert(!ret_val || decoded_tok_cnt == static_cast<int>(tokens.size()));
+    s_slots[slot_index]->tok_cnt += decoded_tok_cnt;
+
+    if(!ret_val)
+    {
+        MT_LOG_ERR("Decoding!\n");
+    }
+    return ret_val;
+}
+
 /** Add token representation of given string to context.
  * 
  *  - "Decode" as in using the decoder of the LLM architecture to add to its
@@ -223,7 +267,6 @@ static bool decode_str(
 {
     assert(slot_index == 0 || slot_index == 1);
 
-    int str_tok_cnt = 0;
     std::vector<llama_token> tokens;
 
     if(str[0] == '\0')
@@ -247,30 +290,7 @@ static bool decode_str(
 //    }
 //#endif //NDEBUG
 
-    s_slots[slot_index]->last_tok_type = tok_type;
-
-    s_active_slot_index = slot_index;
-
-    bool const ret_val = mt_llm_ctx_decode(
-        *s_slots[slot_index]->ctx,
-        *s_slots[slot_index]->sampler,
-        s_slots[slot_index]->tok_cnt,
-        tokens,
-        str_tok_cnt,
-        use_callback ? callback_handler : nullptr);
-
-    // Will be correct on error, too:
-    assert(0 <= str_tok_cnt);
-    // Works, because function called above insert a BOS token into the vector,
-    // if necessary:
-    assert(!ret_val || str_tok_cnt == static_cast<int>(tokens.size()));
-    s_slots[slot_index]->tok_cnt += str_tok_cnt;
-
-    if(!ret_val)
-    {
-        MT_LOG_ERR("Decoding!\n");
-    }
-    return ret_val;
+    return decode_tokens(tokens, tok_type, slot_index, use_callback);
 }
 
 static bool decode_some_prompt_end_delim_with_thinking(
