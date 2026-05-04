@@ -751,17 +751,16 @@ static bool inference(int const slot_index)
     int const initial_tok_cnt = s_slots[slot_index]->tok_cnt;
 
     bool irq = false; // Callback sets this to true, if interrupt is requested.
-    bool is_thinking = false; // True, if currently inferring thinking tokens.
     std::vector<float> dig_probs;
+    // True, if currently inferring thinking tokens.
+    bool is_thinking = // See decoding of system and "normal" prompt end delim.
+        s_slots[slot_index]->last_tok_type == MT_TOK_TYPE_THINK_BEGIN
+            || s_slots[slot_index]->last_tok_type == MT_TOK_TYPE_THINK_TEXT;
 
     int const max_tok_cnt = // Maximum count of tokens the context can hold.
         static_cast<int>(llama_n_ctx(s_slots[slot_index]->ctx));
     bool const is_thinker = // Can the model used think/reason?
         s_slots[slot_index]->mt_p->think_beg_delim[0] != '\0';
-
-    is_thinking = // See decoding of system and "normal" prompt end delim.
-        s_slots[slot_index]->last_tok_type == MT_TOK_TYPE_THINK_BEGIN
-            || s_slots[slot_index]->last_tok_type == MT_TOK_TYPE_THINK_TEXT;
 
     while(s_slots[slot_index]->tok_cnt < max_tok_cnt)
     {
@@ -784,6 +783,10 @@ static bool inference(int const slot_index)
         if(is_thinker)
         {
             assert(is_think_tok_type == -1);
+
+            // TODO: BUG: This won't work, if the think begin and/or end
+            //            delimiters consist of multiple tokens (see
+            //            mt_llm_model.cpp, e.g s_gemma4.think_beg_delim!
 
             if(strncmp(
                 piece.c_str(),
