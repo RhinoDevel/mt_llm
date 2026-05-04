@@ -307,8 +307,17 @@ bool mt_llm_ctx_decode(
     int& decoded_token_count,
     bool(*callback)(llama_token, std::string const &, std::vector<float> const &))
 {
+    assert(str != nullptr);
+
+    std::vector<llama_token> tokens;
+
+    if(str[0] == '\0')
+    {
+        MT_LOG("Warning: Received empty string.");
+    }
+
     // Tokenize the given string:
-    std::vector<llama_token> tokens = mt_llm_ctx_tokenize(
+    tokens = mt_llm_ctx_tokenize(
         ctx,
         str,
         false); // No adding of BOS and/or EOS [is both model-dependent].
