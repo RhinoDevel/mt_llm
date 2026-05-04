@@ -660,6 +660,47 @@ static bool decode_inferred_token(int const slot_index, llama_token const tok)
     return true;
 }
 
+/**
+ * - To be called by inference().
+ */
+static int get_sampled_tok_type(
+    llama_vocab const * const vocab,
+    llama_token const new_tok_id,
+    bool const is_thinking,
+    int const is_think_tok_type,
+    bool const new_tok_is_eog)
+{
+    if(new_tok_is_eog)
+    {
+        assert(is_think_tok_type == -1);
+        return MT_TOK_TYPE_SAMPLED_EOG;
+    }
+
+    if(is_think_tok_type != -1) // "Think" tokens don't seem to be ctrl. tokens.
+    {
+        assert(
+            is_think_tok_type == MT_TOK_TYPE_THINK_BEGIN
+                || is_think_tok_type == MT_TOK_TYPE_THINK_END);
+        return is_think_tok_type; // Think begin or end delimiter.
+    }
+
+    if(llama_vocab_is_control(vocab, new_tok_id))
+    {
+        return MT_TOK_TYPE_SAMPLED_CONTROL_NON_EOG;
+    }
+
+    // These are the ones to be visible to the end user
+    // [although tokens with attribution "unknown" are also
+    // included here, see llama_vocab.cpp, token_to_piece() in
+    // comparance to llama_vocab_is_control() & is_think_tok_type]:
+
+    if(is_thinking)
+    {
+        return MT_TOK_TYPE_THINK_TEXT;
+    }
+    return MT_TOK_TYPE_SAMPLED_NON_EOG_NON_CONTROL;
+}
+
 static bool inference(int const slot_index)
 {
     assert(slot_index == 0 || slot_index == 1);
@@ -731,77 +772,45 @@ static bool inference(int const slot_index)
         //
         // Otherwise: The model is not a thinker.
 
-        if(new_tok_is_eog)
+        s_slots[slot_index]->last_tok_type = get_sampled_tok_type(
+            vocab, new_tok_id, is_thinking, is_think_tok_type, new_tok_is_eog);
+
+        // Calculate probabilities of all digits for first sampled non-EOG,
+        // non-control, non-whitespace, non-thinking, non-empty-piece token
+        // (assumes that the sampling of all former whitespaces was "correct",
+        // which is kind of wrong, but OK in practice):
+        if(s_slots[slot_index]->last_tok_type ==
+            MT_TOK_TYPE_SAMPLED_NON_EOG_NON_CONTROL
+            && dig_probs.empty() // <=> No non-whitespace sampled, yet.
+            && !piece.empty()
+            && !is_whitespace_only(piece.c_str()))
         {
-            s_slots[slot_index]->last_tok_type =
-                MT_TOK_TYPE_SAMPLED_EOG; // (causes stop, below)
-        }
-        else
-        {
-            if(llama_vocab_is_control(vocab, new_tok_id)
-                // Exception: "Think" tokens don't seem to be ctrl. tokens..
-                || is_think_tok_type != -1)
-            {
-                s_slots[slot_index]->last_tok_type =
-                    is_think_tok_type == -1
-                        ? MT_TOK_TYPE_SAMPLED_CONTROL_NON_EOG // Something else.
-                        : is_think_tok_type; // Think begin or end delimiter.
-            }
-            else
-            {
-                // These are the ones to be visible to the end user
-                // [although tokens with attribution "unknown" are also
-                // included here, see llama_vocab.cpp, token_to_piece() in
-                // comparance to llama_vocab_is_control() & is_think_tok_type]:
+            float max = 0.0f;
 
-                if(is_thinking)
-                {
-                    s_slots[slot_index]->last_tok_type = MT_TOK_TYPE_THINK_TEXT;
-                }
-                else
-                {
-                    s_slots[slot_index]->last_tok_type =
-                        MT_TOK_TYPE_SAMPLED_NON_EOG_NON_CONTROL;
+            // TODO: Do just once during initialization:
+            std::vector<std::vector<int>> const dig_toks =
+                mt_llm_model_get_digit_tokens(
+                    *s_slots[slot_index]->model);
 
-                    // Calculate probabilities of all digits for first sampled
-                    // non-EOG, non-control, non-whitespace, non-thinking,
-                    // non-empty-piece token (assumes that the sampling of all
-                    // former whitespaces was "correct", which is kind of wrong,
-                    // but OK in practice):
-                    //
-                    if(dig_probs.empty() // <=> No non-whitespace sampled, yet.
-                        && !piece.empty()
-                        && !is_whitespace_only(piece.c_str()))
-                    {
-                        float max = 0.0f;
+            std::vector<float> const logits = get_last_logits(
+                max, slot_index);
+            std::vector<float> const probs =
+                get_probabilities(logits, max);
 
-                        // TODO: Do just once during initialization:
-                        std::vector<std::vector<int>> const dig_toks =
-                            mt_llm_model_get_digit_tokens(
-                                *s_slots[slot_index]->model);
+            dig_probs = get_token_group_probabilities(
+                dig_toks, probs);
 
-                        std::vector<float> const logits = get_last_logits(
-                            max, slot_index);
-                        std::vector<float> const probs =
-                            get_probabilities(logits, max);
-                        
-                        dig_probs = get_token_group_probabilities(
-                            dig_toks, probs);
-
-                        //{
-                        //    float prob_sum = 0.0f;
-                        //
-                        //    for(int i = 0; i < static_cast<int>(dig_probs.size()); ++i)
-                        //    {
-                        //        MT_LOG("  %d: %6.2f%%\n", i, 100.0f * dig_probs[i]);
-                        //
-                        //        prob_sum += dig_probs[i];
-                        //    }
-                        //    MT_LOG("Sum: %6.2f%%\n", 100.0f * prob_sum);
-                        //}
-                    }
-                }
-            }
+            //{
+            //    float prob_sum = 0.0f;
+            //
+            //    for(int i = 0; i < static_cast<int>(dig_probs.size()); ++i)
+            //    {
+            //        MT_LOG("  %d: %6.2f%%\n", i, 100.0f * dig_probs[i]);
+            //
+            //        prob_sum += dig_probs[i];
+            //    }
+            //    MT_LOG("Sum: %6.2f%%\n", 100.0f * prob_sum);
+            //}
         }
 
         s_active_slot_index = slot_index;
