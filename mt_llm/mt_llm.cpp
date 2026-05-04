@@ -664,13 +664,18 @@ static bool decode_inferred_token(int const slot_index, llama_token const tok)
  * - To be called by inference().
  */
 static int get_sampled_tok_type(
-    llama_vocab const * const vocab,
+    int const slot_index,
     llama_token const new_tok_id,
     bool const is_thinking,
-    int const is_think_tok_type,
-    bool const new_tok_is_eog)
+    int const is_think_tok_type)
 {
-    if(new_tok_is_eog)
+    assert(slot_index == 0 || slot_index == 1);
+    assert(s_slots[slot_index] != nullptr);
+
+    llama_vocab const * const vocab =
+        llama_model_get_vocab(s_slots[slot_index]->model->model);
+
+    if(llama_vocab_is_eog(vocab, new_tok_id))
     {
         assert(is_think_tok_type == -1);
         return MT_TOK_TYPE_SAMPLED_EOG;
@@ -753,8 +758,6 @@ static bool inference(int const slot_index)
         static_cast<int>(llama_n_ctx(s_slots[slot_index]->ctx));
     bool const is_thinker = // Can the model used think/reason?
         s_slots[slot_index]->mt_p->think_beg_delim[0] != '\0';
-    llama_vocab const * const vocab =
-        llama_model_get_vocab(s_slots[slot_index]->model->model);
 
     is_thinking = // See decoding of system and "normal" prompt end delim.
         s_slots[slot_index]->last_tok_type == MT_TOK_TYPE_THINK_BEGIN
@@ -775,7 +778,6 @@ static bool inference(int const slot_index)
 
         llama_token const new_tok_id = llama_sampler_sample(
             s_slots[slot_index]->sampler, s_slots[slot_index]->ctx, -1);
-        bool const new_tok_is_eog = llama_vocab_is_eog(vocab, new_tok_id);
         std::string const piece = mt_llm_ctx_get_piece_from(
             *s_slots[slot_index]->ctx, new_tok_id);
 
@@ -808,7 +810,7 @@ static bool inference(int const slot_index)
         // Otherwise: The model is not a thinker.
 
         s_slots[slot_index]->last_tok_type = get_sampled_tok_type(
-            vocab, new_tok_id, is_thinking, is_think_tok_type, new_tok_is_eog);
+            slot_index, new_tok_id, is_thinking, is_think_tok_type);
 
         // Calculate probabilities of all digits for first sampled non-EOG,
         // non-control, non-whitespace, non-thinking, non-empty-piece token
@@ -842,10 +844,8 @@ static bool inference(int const slot_index)
         }
 
         // Break, if some kind of EOG token was generated.
-        if (new_tok_is_eog)
+        if (s_slots[slot_index]->last_tok_type == MT_TOK_TYPE_SAMPLED_EOG)
         {
-            assert(
-                s_slots[slot_index]->last_tok_type == MT_TOK_TYPE_SAMPLED_EOG);
             break;
         }
     }
