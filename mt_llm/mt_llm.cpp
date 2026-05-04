@@ -773,6 +773,9 @@ static bool inference(int const slot_index)
         //
         // Otherwise: The model is not a thinker.
 
+        // TODO: "BUG": This can cause trouble, we should go back to decoding
+        //              new_tok_id directly to make sure that the exact same
+        //              token will be decoded, here!
         if(!decode_inferred_piece(slot_index, piece.c_str()))
         {
             break; // Called function logged.
