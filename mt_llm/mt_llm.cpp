@@ -215,7 +215,7 @@ static bool callback_handler(
  *    decode failed (e.g. not all tokens could be decoded, because of full
  *    context).
  */
-static bool decode(
+static bool decode_str(
     char const * const str,
     int const tok_type,
     int const slot_index,
@@ -318,7 +318,7 @@ static bool decode_some_prompt_end_delim_with_thinking(
         string_remove_suffix(str_some_prompt_end_delim, str_think_beg_delim);
     }
 
-    if(!decode(
+    if(!decode_str(
             str_some_prompt_end_delim.c_str(),
             MT_TOK_TYPE_DELIM,
             slot_index,
@@ -329,7 +329,7 @@ static bool decode_some_prompt_end_delim_with_thinking(
     }
     if(decode_think_beg_delim)
     {
-        if(!decode(
+        if(!decode_str(
                 s_slots[slot_index]->mt_p->think_beg_delim,
                 MT_TOK_TYPE_THINK_BEGIN,
                 slot_index,
@@ -351,7 +351,7 @@ static bool decode_some_prompt_end_delim_with_thinking(
             str_newline_buf += str_newline;
         }
 
-        if(!decode(
+        if(!decode_str(
                 str_newline_buf.c_str(),
                 decode_think_beg_delim
                     ? MT_TOK_TYPE_THINK_TEXT
@@ -365,7 +365,7 @@ static bool decode_some_prompt_end_delim_with_thinking(
     }
     if(decode_think_end_delim)
     {
-        if(!decode(
+        if(!decode_str(
                 s_slots[slot_index]->mt_p->think_end_delim,
                 MT_TOK_TYPE_THINK_END,
                 slot_index,
@@ -387,7 +387,7 @@ static bool decode_some_prompt_end_delim_with_thinking(
             str_newline_buf += str_newline;
         }
 
-        if(!decode(
+        if(!decode_str(
                 str_newline_buf.c_str(),
                 decode_think_beg_delim && !decode_think_end_delim
                     ? MT_TOK_TYPE_THINK_TEXT
@@ -417,7 +417,7 @@ static bool decode_sys_prompt_end_delim(int const slot_index)
         // Simple case, where there are no thinking/reasoning delimiters.
         assert(s_slots[slot_index]->mt_p->think_end_delim[0] == '\0');
 
-        if(!decode(
+        if(!decode_str(
             s_slots[slot_index]->mt_p->sys_prompt_end_delim,
             MT_TOK_TYPE_DELIM,
             slot_index,
@@ -441,7 +441,7 @@ static bool decode_initial_query(
     assert(s_slots[slot_index]->mt_p->sys_prompt[0] != '\0');
     assert(prompt != nullptr && prompt[0] != '\0');
 
-    if(!decode(
+    if(!decode_str(
             s_slots[slot_index]->mt_p->sys_prompt_beg_delim,
             MT_TOK_TYPE_DELIM,
             slot_index,
@@ -450,7 +450,7 @@ static bool decode_initial_query(
         MT_LOG_ERR("Decoding system prompt begin delimiter!\n");
         return false;
     }
-    if(!decode(
+    if(!decode_str(
             s_slots[slot_index]->mt_p->sys_prompt,
             MT_TOK_TYPE_SYS_PROMPT,
             slot_index,
@@ -459,7 +459,7 @@ static bool decode_initial_query(
         MT_LOG_ERR("Decoding system prompt!\n");
         return false;
     }
-    if(!decode(
+    if(!decode_str(
             s_slots[slot_index]->mt_p->sys_prompt_mid_delim,
             MT_TOK_TYPE_DELIM,
             slot_index,
@@ -468,7 +468,7 @@ static bool decode_initial_query(
         MT_LOG_ERR("Decoding system prompt middle delimiter!\n");
         return false;
     }
-    if(!decode(
+    if(!decode_str(
             prompt,
             MT_TOK_TYPE_PROMPT,
             slot_index,
@@ -510,7 +510,7 @@ static bool decode_prompt_and_sys_prompt_end_delim(
     assert(s_slots[slot_index]->mt_p->sys_prompt[0] != '\0');
     assert(prompt != nullptr && prompt[0] != '\0');
 
-    if(!decode(prompt, MT_TOK_TYPE_PROMPT, slot_index, true))
+    if(!decode_str(prompt, MT_TOK_TYPE_PROMPT, slot_index, true))
     {
         MT_LOG_ERR("Decoding prompt!\n");
         return false;
@@ -532,7 +532,7 @@ static bool decode_follow_up_query(
     assert(slot_index == 0 || slot_index == 1);
     assert(prompt != nullptr && prompt[0] != '\0');
 
-    if(!decode(
+    if(!decode_str(
             s_slots[slot_index]->mt_p->prompt_beg_delim,
             MT_TOK_TYPE_DELIM,
             slot_index,
@@ -541,7 +541,7 @@ static bool decode_follow_up_query(
         MT_LOG_ERR("Decoding prompt begin delimiter!\n");
         return false;
     }
-    if(!decode(prompt, MT_TOK_TYPE_PROMPT, slot_index, true))
+    if(!decode_str(prompt, MT_TOK_TYPE_PROMPT, slot_index, true))
     {
         MT_LOG_ERR("Decoding prompt!\n");
         return false;
@@ -552,7 +552,7 @@ static bool decode_follow_up_query(
         // Simple case, where there are no thinking/reasoning delimiters.
         assert(s_slots[slot_index]->mt_p->think_end_delim[0] == '\0');
 
-        if(!decode(
+        if(!decode_str(
                 s_slots[slot_index]->mt_p->prompt_end_delim,
                 MT_TOK_TYPE_DELIM,
                 slot_index,
@@ -606,9 +606,9 @@ static void decode_irq_tokens(int const slot_index)
     // Adding EOG token, only (e.g. using "..." plus EOG token can trigger that
     // the LLM also uses "..." in its responses).
 
-    if(!decode(
+    if(!decode_str(
             // Overdone token -> string -> token pipeline, but to be able to use
-            // decode() function, only:
+            // decode_str() function, only:
             get_response_tok_eog_str(slot_index).c_str(),
             MT_TOK_TYPE_IRQ,
             slot_index,
@@ -628,7 +628,7 @@ static bool decode_inferred_piece(
     assert(s_slots[slot_index] != nullptr);
     assert(piece != nullptr);
 
-    if(!decode(
+    if(!decode_str(
             piece,
             s_slots[slot_index]->last_tok_type, // <- No change (see caller).
             slot_index,
@@ -1081,7 +1081,7 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_decode_response(
     assert(s_slots[slot_index]->ctx != nullptr);
     assert(s_slots[slot_index]->sampler != nullptr); // Alth. not needed, here..
 
-    if(!decode(
+    if(!decode_str(
             response,
             // Not really sampled here..
             MT_TOK_TYPE_SAMPLED_NON_EOG_NON_CONTROL,
@@ -1092,7 +1092,7 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_decode_response(
         return false;
     }
 
-    if(!decode(
+    if(!decode_str(
             get_response_tok_eog_str(slot_index).c_str(),
             MT_TOK_TYPE_SAMPLED_EOG, // Not really sampled here..
             slot_index,
