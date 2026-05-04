@@ -641,15 +641,15 @@ static void decode_irq_tokens(int const slot_index)
 /**
  * - To be used by inference().
  */
-static bool decode_inferred_piece(
-    int const slot_index, char const * const piece)
+static bool decode_inferred_token(int const slot_index, llama_token const tok)
 {
     assert(slot_index == 0 || slot_index == 1);
     assert(s_slots[slot_index] != nullptr);
-    assert(piece != nullptr);
 
-    if(!decode_str(
-            piece,
+    std::vector<llama_token> tokens{ tok };
+
+    if(!decode_tokens(
+            tokens,
             s_slots[slot_index]->last_tok_type, // <- No change (see caller).
             slot_index,
             false))
@@ -815,10 +815,9 @@ static bool inference(int const slot_index)
         //
         // Otherwise: The model is not a thinker.
 
-        // TODO: "BUG": This can cause trouble, we should go back to decoding
-        //              new_tok_id directly to make sure that the exact same
-        //              token will be decoded, here!
-        if(!decode_inferred_piece(slot_index, piece.c_str()))
+        // Do NOT use the piece for this to make sure, that the exact same token
+        // is added to the context:
+        if(!decode_inferred_token(slot_index, new_tok_id))
         {
             break; // Called function logged.
         }
