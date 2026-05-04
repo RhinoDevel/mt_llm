@@ -196,6 +196,7 @@ static bool callback_handler(
 
     if(piece.empty()) // Token is omitted by llama.cpp => Also omit here.
     {
+        MT_LOG("Warning: Retrieved token with ID %d having empty string representation.", tok);
         return false; // <=> No interruption.
     }
 
