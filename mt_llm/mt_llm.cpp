@@ -701,6 +701,41 @@ static int get_sampled_tok_type(
     return MT_TOK_TYPE_SAMPLED_NON_EOG_NON_CONTROL;
 }
 
+/**
+ * - To be called by inference().
+ */
+static std::vector<float> create_dig_probs(int const slot_index)
+{
+    assert(slot_index == 0 || slot_index == 1);
+    assert(s_slots[slot_index] != nullptr);
+
+    std::vector<float> ret_val;
+    float max = 0.0f;
+
+    // TODO: Do just once during initialization:
+    std::vector<std::vector<int>> const dig_toks =
+        mt_llm_model_get_digit_tokens(*s_slots[slot_index]->model);
+
+    std::vector<float> const logits = get_last_logits(max, slot_index);
+    std::vector<float> const probs = get_probabilities(logits, max);
+
+    ret_val = get_token_group_probabilities(dig_toks, probs);
+
+    //{
+    //    float prob_sum = 0.0f;
+    //
+    //    for(int i = 0; i < static_cast<int>(ret_val.size()); ++i)
+    //    {
+    //        MT_LOG("  %d: %6.2f%%\n", i, 100.0f * ret_val[i]);
+    //
+    //        prob_sum += ret_val[i];
+    //    }
+    //    MT_LOG("Sum: %6.2f%%\n", 100.0f * prob_sum);
+    //}
+
+    return ret_val;
+}
+
 static bool inference(int const slot_index)
 {
     assert(slot_index == 0 || slot_index == 1);
@@ -781,36 +816,11 @@ static bool inference(int const slot_index)
         // which is kind of wrong, but OK in practice):
         if(s_slots[slot_index]->last_tok_type ==
             MT_TOK_TYPE_SAMPLED_NON_EOG_NON_CONTROL
-            && dig_probs.empty() // <=> No non-whitespace sampled, yet.
-            && !piece.empty()
-            && !is_whitespace_only(piece.c_str()))
+                && dig_probs.empty() // <=> No non-whitespace sampled, yet.
+                && !piece.empty()
+                && !is_whitespace_only(piece.c_str()))
         {
-            float max = 0.0f;
-
-            // TODO: Do just once during initialization:
-            std::vector<std::vector<int>> const dig_toks =
-                mt_llm_model_get_digit_tokens(
-                    *s_slots[slot_index]->model);
-
-            std::vector<float> const logits = get_last_logits(
-                max, slot_index);
-            std::vector<float> const probs =
-                get_probabilities(logits, max);
-
-            dig_probs = get_token_group_probabilities(
-                dig_toks, probs);
-
-            //{
-            //    float prob_sum = 0.0f;
-            //
-            //    for(int i = 0; i < static_cast<int>(dig_probs.size()); ++i)
-            //    {
-            //        MT_LOG("  %d: %6.2f%%\n", i, 100.0f * dig_probs[i]);
-            //
-            //        prob_sum += dig_probs[i];
-            //    }
-            //    MT_LOG("Sum: %6.2f%%\n", 100.0f * prob_sum);
-            //}
+            dig_probs = create_dig_probs(slot_index);
         }
 
         s_active_slot_index = slot_index;
