@@ -833,10 +833,10 @@ static bool inference(int const slot_index)
         s_active_slot_index = slot_index;
     	irq = callback_handler(new_tok_id, piece, dig_probs);
 
-        if(is_thinker && is_think_tok_type == MT_TOK_TYPE_THINK_END)
+        if(s->last_tok_type == MT_TOK_TYPE_THINK_END)
         {
             assert(is_thinking);
-            is_thinking = false; // AFTER calling callback.
+            is_thinking = false;
         }
         //
         // Otherwise: The model is not a thinker.
