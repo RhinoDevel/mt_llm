@@ -746,23 +746,25 @@ static bool inference(int const slot_index)
     assert(slot_index == 0 || slot_index == 1);
     assert(s_slots[slot_index] != nullptr);
 
+    struct mt_llm_s * const s = s_slots[slot_index];
+
     // For performance measurement:
     int64_t const t_main_start = ggml_time_us();
-    int const initial_tok_cnt = s_slots[slot_index]->tok_cnt;
+    int const initial_tok_cnt = s->tok_cnt;
 
     bool irq = false; // Callback sets this to true, if interrupt is requested.
     std::vector<float> dig_probs;
     // True, if currently inferring thinking tokens.
     bool is_thinking = // See decoding of system and "normal" prompt end delim.
-        s_slots[slot_index]->last_tok_type == MT_TOK_TYPE_THINK_BEGIN
-            || s_slots[slot_index]->last_tok_type == MT_TOK_TYPE_THINK_TEXT;
+        s->last_tok_type == MT_TOK_TYPE_THINK_BEGIN
+            || s->last_tok_type == MT_TOK_TYPE_THINK_TEXT;
 
-    int const max_tok_cnt = // Maximum count of tokens the context can hold.
-        static_cast<int>(llama_n_ctx(s_slots[slot_index]->ctx));
-    bool const is_thinker = // Can the model used think/reason?
-        s_slots[slot_index]->mt_p->think_beg_delim[0] != '\0';
+    // Maximum count of tokens the context can hold.
+    int const max_tok_cnt =  static_cast<int>(llama_n_ctx(s->ctx));
+    // Can the model used think/reason?
+    bool const is_thinker = s->mt_p->think_beg_delim[0] != '\0';
 
-    while(s_slots[slot_index]->tok_cnt < max_tok_cnt)
+    while(s->tok_cnt < max_tok_cnt)
     {
         // Space for at least one token is left in context, if getting here.
 
@@ -776,9 +778,9 @@ static bool inference(int const slot_index)
         }
 
         llama_token const new_tok_id = llama_sampler_sample(
-            s_slots[slot_index]->sampler, s_slots[slot_index]->ctx, -1);
+            s->sampler, s->ctx, -1);
         std::string const piece = mt_llm_ctx_get_piece_from(
-            *s_slots[slot_index]->ctx, new_tok_id);
+            *s->ctx, new_tok_id);
 
         if(is_thinker)
         {
@@ -790,7 +792,7 @@ static bool inference(int const slot_index)
 
             if(strncmp(
                 piece.c_str(),
-                s_slots[slot_index]->mt_p->think_beg_delim,
+                s->mt_p->think_beg_delim,
                 MT_LLM_P_LEN_THINK_BEG_DELIM) == 0)
             {
                 is_think_tok_type = MT_TOK_TYPE_THINK_BEGIN;
@@ -802,7 +804,7 @@ static bool inference(int const slot_index)
             {
                 if(strncmp(
                     piece.c_str(),
-                    s_slots[slot_index]->mt_p->think_end_delim,
+                    s->mt_p->think_end_delim,
                     MT_LLM_P_LEN_THINK_END_DELIM) == 0)
                 {
                     is_think_tok_type = MT_TOK_TYPE_THINK_END;
@@ -812,14 +814,14 @@ static bool inference(int const slot_index)
         //
         // Otherwise: The model is not a thinker.
 
-        s_slots[slot_index]->last_tok_type = get_sampled_tok_type(
+        s->last_tok_type = get_sampled_tok_type(
             slot_index, new_tok_id, is_thinking, is_think_tok_type);
 
         // Calculate probabilities of all digits for first sampled non-EOG,
         // non-control, non-whitespace, non-thinking, non-empty-piece token
         // (assumes that the sampling of all former whitespaces was "correct",
         // which is kind of wrong, but OK in practice):
-        if(s_slots[slot_index]->last_tok_type ==
+        if(s->last_tok_type ==
             MT_TOK_TYPE_SAMPLED_NON_EOG_NON_CONTROL
                 && dig_probs.empty() // <=> No non-whitespace sampled, yet.
                 && !piece.empty()
@@ -847,7 +849,7 @@ static bool inference(int const slot_index)
         }
 
         // Break, if some kind of EOG token was generated.
-        if (s_slots[slot_index]->last_tok_type == MT_TOK_TYPE_SAMPLED_EOG)
+        if (s->last_tok_type == MT_TOK_TYPE_SAMPLED_EOG)
         {
             break;
         }
@@ -856,7 +858,7 @@ static bool inference(int const slot_index)
     {
         float const t_decode_seconds =
             static_cast<float>(ggml_time_us() - t_main_start) / 1000000.0f;
-        int const n_decode = s_slots[slot_index]->tok_cnt - initial_tok_cnt;
+        int const n_decode = s->tok_cnt - initial_tok_cnt;
 
         MT_LOG(
             "Decoded %d tokens in %.2fs, speed: %.2f t/s.\n",
@@ -865,7 +867,7 @@ static bool inference(int const slot_index)
             static_cast<float>(n_decode) / t_decode_seconds);
     }
 
-    return s_slots[slot_index]->last_tok_type == MT_TOK_TYPE_SAMPLED_EOG;
+    return s->last_tok_type == MT_TOK_TYPE_SAMPLED_EOG;
 }
 
 /**
