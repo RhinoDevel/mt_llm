@@ -664,45 +664,54 @@ static bool decode_inferred_token(int const slot_index, llama_token const tok)
  * - To be called by inference().
  */
 static int get_sampled_tok_type(
-    int const slot_index,
-    llama_token const new_tok_id,
-    bool const is_thinking,
-    int const is_think_tok_type)
+    mt_llm_s const & s, llama_token const new_tok_id, std::string const &piece)
 {
-    assert(slot_index == 0 || slot_index == 1);
-    assert(s_slots[slot_index] != nullptr);
-
-    llama_vocab const * const vocab =
-        llama_model_get_vocab(s_slots[slot_index]->model->model);
+    llama_vocab const * const vocab = llama_model_get_vocab(s.model->model);
 
     if(llama_vocab_is_eog(vocab, new_tok_id))
     {
-        assert(is_think_tok_type == -1);
         return MT_TOK_TYPE_SAMPLED_EOG;
     }
-
-    if(is_think_tok_type != -1) // "Think" tokens don't seem to be ctrl. tokens.
-    {
-        assert(
-            is_think_tok_type == MT_TOK_TYPE_THINK_BEGIN
-                || is_think_tok_type == MT_TOK_TYPE_THINK_END);
-        return is_think_tok_type; // Think begin or end delimiter.
-    }
-
     if(llama_vocab_is_control(vocab, new_tok_id))
     {
         return MT_TOK_TYPE_SAMPLED_CONTROL_NON_EOG;
     }
 
+    // Can the model used think/reason?
+    bool const is_thinker = s.mt_p->think_beg_delim[0] != '\0';
+
+    // TODO: BUG: This won't work, if the think begin and/or end
+    //            delimiters consist of multiple tokens (see
+    //            mt_llm_model.cpp, e.g s_gemma4.think_beg_delim!
+    //
+    // "Think" tokens don't seem to be ctrl. tokens.
+    if(strncmp(
+        piece.c_str(),
+        s.mt_p->think_beg_delim,
+        MT_LLM_P_LEN_THINK_BEG_DELIM) == 0)
+    {
+        return MT_TOK_TYPE_THINK_BEGIN;
+    }
+    if(strncmp(
+        piece.c_str(),
+        s.mt_p->think_end_delim,
+        MT_LLM_P_LEN_THINK_END_DELIM) == 0)
+    {
+        return MT_TOK_TYPE_THINK_END;
+    }
+
     // These are the ones to be visible to the end user
     // [although tokens with attribution "unknown" are also
     // included here, see llama_vocab.cpp, token_to_piece() in
-    // comparance to llama_vocab_is_control() & is_think_tok_type]:
+    // comparance to llama_vocab_is_control() & ...THINK_BEGIN/...THINK_END]:
 
-    if(is_thinking)
+    // Also see decoding of system and "normal" prompt end delim.
+    if(s.last_tok_type == MT_TOK_TYPE_THINK_BEGIN
+        || s.last_tok_type == MT_TOK_TYPE_THINK_TEXT)
     {
-        return MT_TOK_TYPE_THINK_TEXT;
+        return MT_TOK_TYPE_THINK_TEXT; // Currently thinking/reasoning.
     }
+
     return MT_TOK_TYPE_SAMPLED_NON_EOG_NON_CONTROL;
 }
 
@@ -754,23 +763,17 @@ static bool inference(int const slot_index)
 
     bool irq = false; // Callback sets this to true, if interrupt is requested.
     std::vector<float> dig_probs;
-    // True, if currently inferring thinking tokens.
-    bool is_thinking = // See decoding of system and "normal" prompt end delim.
-        s->last_tok_type == MT_TOK_TYPE_THINK_BEGIN
-            || s->last_tok_type == MT_TOK_TYPE_THINK_TEXT;
 
     // Maximum count of tokens the context can hold.
     int const max_tok_cnt =  static_cast<int>(llama_n_ctx(s->ctx));
-    // Can the model used think/reason?
-    bool const is_thinker = s->mt_p->think_beg_delim[0] != '\0';
 
     while(s->tok_cnt < max_tok_cnt)
     {
         // Space for at least one token is left in context, if getting here.
 
-        int is_think_tok_type = -1; // -1 == No thinking token type at all.
-
-        if(irq)
+        if(irq
+            // Also see below.
+            && s->last_tok_type == MT_TOK_TYPE_SAMPLED_NON_EOG_NON_CONTROL)
         {
             // An interrupt of the inference was requested.
             decode_irq_tokens(slot_index); // Called function logs on error.
@@ -782,47 +785,13 @@ static bool inference(int const slot_index)
         std::string const piece = mt_llm_ctx_get_piece_from(
             *s->ctx, new_tok_id);
 
-        if(is_thinker)
-        {
-            assert(is_think_tok_type == -1);
-
-            // TODO: BUG: This won't work, if the think begin and/or end
-            //            delimiters consist of multiple tokens (see
-            //            mt_llm_model.cpp, e.g s_gemma4.think_beg_delim!
-
-            if(strncmp(
-                piece.c_str(),
-                s->mt_p->think_beg_delim,
-                MT_LLM_P_LEN_THINK_BEG_DELIM) == 0)
-            {
-                is_think_tok_type = MT_TOK_TYPE_THINK_BEGIN;
-
-                assert(!is_thinking);
-                is_thinking = true; // BEFORE calling callback.
-            }
-            else
-            {
-                if(strncmp(
-                    piece.c_str(),
-                    s->mt_p->think_end_delim,
-                    MT_LLM_P_LEN_THINK_END_DELIM) == 0)
-                {
-                    is_think_tok_type = MT_TOK_TYPE_THINK_END;
-                }
-            }
-        }
-        //
-        // Otherwise: The model is not a thinker.
-
-        s->last_tok_type = get_sampled_tok_type(
-            slot_index, new_tok_id, is_thinking, is_think_tok_type);
+        s->last_tok_type = get_sampled_tok_type(*s, new_tok_id, piece);
 
         // Calculate probabilities of all digits for first sampled non-EOG,
         // non-control, non-whitespace, non-thinking, non-empty-piece token
         // (assumes that the sampling of all former whitespaces was "correct",
         // which is kind of wrong, but OK in practice):
-        if(s->last_tok_type ==
-            MT_TOK_TYPE_SAMPLED_NON_EOG_NON_CONTROL
+        if(s->last_tok_type == MT_TOK_TYPE_SAMPLED_NON_EOG_NON_CONTROL
                 && dig_probs.empty() // <=> No non-whitespace sampled, yet.
                 && !piece.empty()
                 && !is_whitespace_only(piece.c_str()))
@@ -831,15 +800,8 @@ static bool inference(int const slot_index)
         }
 
         s_active_slot_index = slot_index;
-    	irq = callback_handler(new_tok_id, piece, dig_probs);
-
-        if(s->last_tok_type == MT_TOK_TYPE_THINK_END)
-        {
-            assert(is_thinking);
-            is_thinking = false;
-        }
-        //
-        // Otherwise: The model is not a thinker.
+    	irq = callback_handler(new_tok_id, piece, dig_probs)
+                || irq; // <- Do not disable again (see above).
 
         // Do NOT use the piece for this to make sure, that the exact same token
         // is added to the context:
