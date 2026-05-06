@@ -110,16 +110,11 @@ static std::vector<float> get_probabilities(
  * - Returns an empty vector, if no last logits available.
  * - Original source: llama.cpp/tools/server/utils.hpp/get_token_probabilities()
  */
-static std::vector<float> get_last_logits(float& max, int const slot_index)
+static std::vector<float> get_last_logits(mt_llm_s const &s, float& max)
 {
-    assert(slot_index == 0 || slot_index == 1);
-    assert(s_slots[slot_index] != nullptr);
-    assert(s_slots[slot_index]->model != nullptr);
-
     std::vector<float> ret_val;
 
-    float const * const logits = llama_get_logits_ith(
-        s_slots[slot_index]->ctx, -1);
+    float const * const logits = llama_get_logits_ith(s.ctx, -1);
 
     if(logits == nullptr)
     {
@@ -128,7 +123,7 @@ static std::vector<float> get_last_logits(float& max, int const slot_index)
     }
 
     int32_t const n_vocab = llama_vocab_n_tokens(
-        llama_model_get_vocab(s_slots[slot_index]->model->model));
+        llama_model_get_vocab(s.model->model));
 
     assert(0 < n_vocab);
 
@@ -730,7 +725,8 @@ static std::vector<float> create_dig_probs(int const slot_index)
     std::vector<std::vector<int>> const dig_toks =
         mt_llm_model_get_digit_tokens(*s_slots[slot_index]->model);
 
-    std::vector<float> const logits = get_last_logits(max, slot_index);
+    std::vector<float> const logits = get_last_logits(
+        *s_slots[slot_index], max);
     std::vector<float> const probs = get_probabilities(logits, max);
 
     ret_val = get_token_group_probabilities(dig_toks, probs);
