@@ -12,6 +12,7 @@
 #include "mt_llm_ctx.h"
 #include "mt_llm_log.h"
 #include "mt_llm_model.h"
+#include "mt_llm_s.h"
 
 static llama_context_params get_ctx_params(
     mt_llm_p const & mt_p, llama_model const & model)
@@ -236,17 +237,15 @@ std::string mt_llm_ctx_get_piece_from(
 }
 
 bool mt_llm_ctx_decode(
-    llama_context& ctx,
-    llama_sampler& sampler,
-    int const existing_token_count,
+    mt_llm_s const &s,
     std::vector<llama_token>& tokens,
     int& decoded_token_count,
-    bool(*callback)(llama_token, std::string const &, std::vector<float> const &))
+    bool(*callback)(llama_token, std::string const &, std::vector<float> const &, mt_llm_s const &))
 {
     llama_vocab const * const vocab =
-        llama_model_get_vocab(llama_get_model(&ctx));
+        llama_model_get_vocab(llama_get_model(s.ctx));
 
-    if(existing_token_count == 0 && llama_vocab_get_add_bos(vocab))
+    if(s.tok_cnt == 0 && llama_vocab_get_add_bos(vocab))
     {
         // *** AUGMENTS ***
 
@@ -260,9 +259,9 @@ bool mt_llm_ctx_decode(
     for(int i = 0; i < tok_count; ++i)
     {
         if(!decode_single_token(
-            &ctx,
-            &sampler,
-            existing_token_count + i,
+            s.ctx,
+            s.sampler,
+            s.tok_cnt + i,
             tokens[i],
             i + 1 == tok_count))
         {
@@ -275,8 +274,9 @@ bool mt_llm_ctx_decode(
         {
             callback( // (return value ignored)
                 tokens[i],
-                mt_llm_ctx_get_piece_from(ctx, tokens[i]),
-                std::vector<float>());
+                mt_llm_ctx_get_piece_from(*s.ctx, tokens[i]),
+                std::vector<float>(),
+                s);
         }
     }
     assert(decoded_token_count == tok_count);

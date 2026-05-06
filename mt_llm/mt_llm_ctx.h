@@ -9,6 +9,7 @@
 
 #include "mt_llm_p.h"
 #include "mt_llm_model.h"
+#include "mt_llm_s.h"
 
 std::vector<llama_token> mt_llm_ctx_tokenize(
     llama_context const & ctx, char const * const str, bool const add_special);
@@ -26,12 +27,10 @@ std::string mt_llm_ctx_get_piece_from(
  * - Never applies grammar.
  */
 bool mt_llm_ctx_decode(
-    llama_context& ctx,
-    llama_sampler& sampler,
-    int const existing_token_count,
+    mt_llm_s const &s,
     std::vector<llama_token>& tokens,
     int& decoded_token_count,
-    bool(*callback)(llama_token, std::string const &, std::vector<float> const &));
+    bool(*callback)(llama_token, std::string const &, std::vector<float> const &, mt_llm_s const &));
 
 /** Initialize the model.
  * 

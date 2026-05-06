@@ -25,7 +25,6 @@
 
 // mt_llm_snapshot is also hard-coded to two LLM slots!
 static struct mt_llm_s * s_slots[] = { nullptr, nullptr };
-static int s_active_slot_index = 0; // For callback_handler().
 
 static bool s_is_common_init = false;
 static bool s_is_backend_init = false;
@@ -183,11 +182,10 @@ static bool is_whitespace_only(char const * const c)
 static bool callback_handler(
     llama_token const tok,
     std::string const & piece,
-    std::vector<float> const & dig_probs)
+    std::vector<float> const & dig_probs,
+    mt_llm_s const &s)
 {
-    assert(s_active_slot_index == 0 || s_active_slot_index == 1);
-    assert(s_slots[s_active_slot_index] != nullptr);
-    assert(0 < s_slots[s_active_slot_index]->last_tok_type);
+    assert(0 < s.last_tok_type);
 
     if(piece.empty()) // Token is omitted by llama.cpp => Also omit here.
     {
@@ -195,10 +193,10 @@ static bool callback_handler(
         return false; // <=> No interruption.
     }
 
-    return s_slots[s_active_slot_index]->mt_p->callback(
+    return s.mt_p->callback(
         static_cast<int>(tok),
         piece.c_str(),
-        s_slots[s_active_slot_index]->last_tok_type,
+        s.last_tok_type,
         dig_probs.empty() ? nullptr : dig_probs.data());
 }
 
@@ -222,12 +220,8 @@ static bool decode_tokens(
 
     s_slots[slot_index]->last_tok_type = tok_type;
 
-    s_active_slot_index = slot_index;
-
     bool const ret_val = mt_llm_ctx_decode(
-        *s_slots[slot_index]->ctx,
-        *s_slots[slot_index]->sampler,
-        s_slots[slot_index]->tok_cnt,
+        *s_slots[slot_index],
         tokens,
         decoded_tok_cnt,
         use_callback ? callback_handler : nullptr);
@@ -794,8 +788,7 @@ static bool inference(int const slot_index)
             dig_probs = create_dig_probs(slot_index);
         }
 
-        s_active_slot_index = slot_index;
-    	irq = callback_handler(new_tok_id, piece, dig_probs)
+    	irq = callback_handler(new_tok_id, piece, dig_probs, *s)
                 || irq; // <- Don't overwrite already received IRQ (see above).
 
         // Do NOT use the piece for this to make sure, that the exact same token
