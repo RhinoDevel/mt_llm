@@ -771,11 +771,10 @@ static bool inference(int const slot_index)
     {
         // Space for at least one token is left in context, if getting here.
 
-        if(irq
-            // Also see below.
+        if(irq // <- An interrupt of the inference was requested.
+            // Only interrupt actual response to the user (also see below).
             && s->last_tok_type == MT_TOK_TYPE_SAMPLED_NON_EOG_NON_CONTROL)
         {
-            // An interrupt of the inference was requested.
             decode_irq_tokens(slot_index); // Called function logs on error.
             break;
         }
@@ -801,7 +800,7 @@ static bool inference(int const slot_index)
 
         s_active_slot_index = slot_index;
     	irq = callback_handler(new_tok_id, piece, dig_probs)
-                || irq; // <- Do not disable again (see above).
+                || irq; // <- Don't overwrite already received IRQ (see above).
 
         // Do NOT use the piece for this to make sure, that the exact same token
         // is added to the context:
