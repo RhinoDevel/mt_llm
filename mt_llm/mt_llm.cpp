@@ -30,9 +30,9 @@ static int s_active_slot_index = 0; // For callback_handler().
 static bool s_is_common_init = false;
 static bool s_is_backend_init = false;
 
-static void clear_llama_memory(int const slot_index)
+static void clear_llama_memory(llama_context const * const ctx)
 {
-    llama_memory_t kv = llama_get_memory(s_slots[slot_index]->ctx);
+    llama_memory_t kv = llama_get_memory(ctx);
 
     if(kv != nullptr)
     {
@@ -893,7 +893,7 @@ static std::vector<float> rerank_batch_decode(
 
     ret_val.clear(); // Necessary?
 
-    clear_llama_memory(slot_index);
+    clear_llama_memory(s_slots[slot_index]->ctx);
 
     if(llama_decode(s_slots[slot_index]->ctx, batch) != 0)
     {
@@ -1240,7 +1240,7 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_create_embeddings(
     // *** Clear the memory (K/V cache):                                     ***
     // *************************************************************************
 
-    clear_llama_memory(slot_index);
+    clear_llama_memory(s_slots[slot_index]->ctx);
 
     // *************************************************************************
     // *** Get token representation of given prompt/text:                    ***
@@ -1656,7 +1656,7 @@ MT_EXPORT_LLM_API void __stdcall mt_llm_reset(
     assert(s_slots[slot_index]->ctx != nullptr);
     assert(s_slots[slot_index]->sampler != nullptr);
 
-    clear_llama_memory(slot_index);
+    clear_llama_memory(s_slots[slot_index]->ctx);
 
     llama_sampler_reset(s_slots[slot_index]->sampler);
 
