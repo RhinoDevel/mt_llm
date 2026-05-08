@@ -707,20 +707,16 @@ static int get_sampled_tok_type(
 /**
  * - To be called by inference().
  */
-static std::vector<float> create_dig_probs(int const slot_index)
+static std::vector<float> create_dig_probs(mt_llm_s const & s)
 {
-    assert(slot_index == 0 || slot_index == 1);
-    assert(s_slots[slot_index] != nullptr);
-
     std::vector<float> ret_val;
     float max = 0.0f;
 
     // TODO: Do just once during initialization:
     std::vector<std::vector<int>> const dig_toks =
-        mt_llm_model_get_digit_tokens(*s_slots[slot_index]->model);
+        mt_llm_model_get_digit_tokens(*s.model);
 
-    std::vector<float> const logits = get_last_logits(
-        *s_slots[slot_index], max);
+    std::vector<float> const logits = get_last_logits(s, max);
     std::vector<float> const probs = get_probabilities(logits, max);
 
     ret_val = get_token_group_probabilities(dig_toks, probs);
@@ -785,7 +781,7 @@ static bool inference(int const slot_index)
                 && !piece.empty()
                 && !is_whitespace_only(piece.c_str()))
         {
-            dig_probs = create_dig_probs(slot_index);
+            dig_probs = create_dig_probs(*s);
         }
 
     	irq = callback_handler(new_tok_id, piece, dig_probs, *s)
