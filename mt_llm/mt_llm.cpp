@@ -756,48 +756,44 @@ static bool inference(mt_llm_s& s)
  * - Caller takes ownership.
  */
 static llama_sampler* create_sampler(
-    llama_vocab const * const vocab, int const slot_index)
+    llama_vocab const * const vocab, mt_llm_p const &p)
 {
-    assert(slot_index == 0 || slot_index == 1);
-    assert(
-        s_slots[slot_index] != nullptr && s_slots[slot_index]->mt_p != nullptr);
-
     static size_t const min_keep = 0; // TODO: Is this the best option?
     static char const * const grammar_root = "root"; // TODO: Is this correct?
 
-    llama_sampler_chain_params p = llama_sampler_chain_default_params();
+    llama_sampler_chain_params sp = llama_sampler_chain_default_params();
 
-    assert(p.no_perf);
+    assert(sp.no_perf);
 
-    llama_sampler * const ret_val = llama_sampler_chain_init(p);
+    llama_sampler * const ret_val = llama_sampler_chain_init(sp);
 
-    if(s_slots[slot_index]->mt_p->grammar[0] != '\0') // <- Does not seem to be necessary.
+    if(p.grammar[0] != '\0') // <- Does not seem to be necessary.
     {
         // TODO: Test, if this actually works this way!
 
         llama_sampler_chain_add(
             ret_val,
             llama_sampler_init_grammar(
-                vocab, s_slots[slot_index]->mt_p->grammar, grammar_root));
+                vocab, p.grammar, grammar_root));
     }
 
     llama_sampler_chain_add(
-        ret_val, llama_sampler_init_top_k(s_slots[slot_index]->mt_p->top_k));
+        ret_val, llama_sampler_init_top_k(p.top_k));
 
     llama_sampler_chain_add(
         ret_val,
-        llama_sampler_init_top_p(s_slots[slot_index]->mt_p->top_p, min_keep));
+        llama_sampler_init_top_p(p.top_p, min_keep));
 
     llama_sampler_chain_add(
         ret_val,
-        llama_sampler_init_min_p(s_slots[slot_index]->mt_p->min_p, min_keep));
+        llama_sampler_init_min_p(p.min_p, min_keep));
 
     llama_sampler_chain_add(
-        ret_val, llama_sampler_init_temp(s_slots[slot_index]->mt_p->temp));
+        ret_val, llama_sampler_init_temp(p.temp));
 
     assert(LLAMA_DEFAULT_SEED == static_cast<uint32_t>(-1));
     llama_sampler_chain_add(
-        ret_val, llama_sampler_init_dist(s_slots[slot_index]->mt_p->seed));
+        ret_val, llama_sampler_init_dist(p.seed));
 
     return ret_val;
 }
@@ -1726,7 +1722,8 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_reinit(
     // reranking usage):
     //
     s_slots[slot_index]->sampler = create_sampler(
-        llama_model_get_vocab(s_slots[slot_index]->model->model), slot_index);
+        llama_model_get_vocab(s_slots[slot_index]->model->model),
+        *s_slots[slot_index]->mt_p);
     if(s_slots[slot_index]->sampler == nullptr)
     {
         MT_LOG_ERR("Unable to create sampler!\n");
