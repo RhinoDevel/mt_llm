@@ -499,37 +499,27 @@ static bool decode_prompt_and_sys_prompt_end_delim(
  * - Automatically detects optional "jumpstart" or disabling thinking/reasoning
  *   tokens at the end of the prompt end delimiter.
  */
-static bool decode_follow_up_query(
-    char const * const prompt, int const slot_index)
+static bool decode_follow_up_query(char const * const prompt, mt_llm_s& s)
 {
-    assert(slot_index == 0 || slot_index == 1);
     assert(prompt != nullptr && prompt[0] != '\0');
 
-    if(!decode_str(
-            s_slots[slot_index]->mt_p->prompt_beg_delim,
-            MT_TOK_TYPE_DELIM,
-            *s_slots[slot_index],
-            true))
+    if(!decode_str(s.mt_p->prompt_beg_delim, MT_TOK_TYPE_DELIM, s, true))
     {
         MT_LOG_ERR("Decoding prompt begin delimiter!\n");
         return false;
     }
-    if(!decode_str(prompt, MT_TOK_TYPE_PROMPT, *s_slots[slot_index], true))
+    if(!decode_str(prompt, MT_TOK_TYPE_PROMPT, s, true))
     {
         MT_LOG_ERR("Decoding prompt!\n");
         return false;
     }
 
-    if(s_slots[slot_index]->mt_p->think_beg_delim[0] == '\0')
+    if(s.mt_p->think_beg_delim[0] == '\0')
     {
         // Simple case, where there are no thinking/reasoning delimiters.
-        assert(s_slots[slot_index]->mt_p->think_end_delim[0] == '\0');
+        assert(s.mt_p->think_end_delim[0] == '\0');
 
-        if(!decode_str(
-                s_slots[slot_index]->mt_p->prompt_end_delim,
-                MT_TOK_TYPE_DELIM,
-                *s_slots[slot_index],
-                true))
+        if(!decode_str(s.mt_p->prompt_end_delim, MT_TOK_TYPE_DELIM, s, true))
         {
             MT_LOG_ERR("Decoding prompt end delimiter (1)!\n");
             return false;
@@ -537,7 +527,7 @@ static bool decode_follow_up_query(
         return true;
     }
     return decode_some_prompt_end_delim_with_thinking(
-        s_slots[slot_index]->mt_p->prompt_end_delim, *s_slots[slot_index]);
+        s.mt_p->prompt_end_delim, s);
 }
 
 /** Return the EOG token's string representation (the EOG token that is used by
@@ -1109,7 +1099,7 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_query(
         }
         else
         {
-            if(!decode_follow_up_query(prompt, slot_index))
+            if(!decode_follow_up_query(prompt, *s_slots[slot_index]))
             {
                 return false; // (called function logs on error)
             }
