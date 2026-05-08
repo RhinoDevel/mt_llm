@@ -854,25 +854,27 @@ MT_EXPORT_LLM_API int mt_llm_get_token_count(
         MT_LOG_ERR("Invalid slot index given!\n");
         return -3;
     }
-
     if(s_slots[slot_index] == nullptr)
     {
         MT_LOG_ERR("Not intialized!\n");
         return -1;
     }
+
+    mt_llm_s const &s = *s_slots[slot_index];
+
     if(text == nullptr)
     {
         MT_LOG_ERR("NULL given!\n");
         return -2;
     }
-    if(s_slots[slot_index]->mt_p->emb_or_rerank != 0)
+    if(s.mt_p->emb_or_rerank != 0)
     {
         MT_LOG_ERR("Configured for embeddings creation or reranking usage!\n");
         return -4;
     }
 
     std::vector<llama_token> const tokens = mt_llm_ctx_tokenize(
-        *s_slots[slot_index]->ctx, text, add_special);
+        *s.ctx, text, add_special);
 
     return static_cast<int>(tokens.size());
 }
