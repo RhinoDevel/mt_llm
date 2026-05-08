@@ -478,19 +478,17 @@ static bool decode_initial_query(
  * - Also see comment in decode_initial_query() about skip_sys_prompt_end_delim.
  */
 static bool decode_prompt_and_sys_prompt_end_delim(
-    char const * const prompt,
-    int const slot_index)
+    char const * const prompt, mt_llm_s& s)
 {
-    assert(slot_index == 0 || slot_index == 1);
-    assert(s_slots[slot_index]->mt_p->sys_prompt[0] != '\0');
+    assert(s.mt_p->sys_prompt[0] != '\0');
     assert(prompt != nullptr && prompt[0] != '\0');
 
-    if(!decode_str(prompt, MT_TOK_TYPE_PROMPT, *s_slots[slot_index], true))
+    if(!decode_str(prompt, MT_TOK_TYPE_PROMPT, s, true))
     {
         MT_LOG_ERR("Decoding prompt!\n");
         return false;
     }
-    if(!decode_sys_prompt_end_delim(*s_slots[slot_index]))
+    if(!decode_sys_prompt_end_delim(s))
     {
         return false; // (called function logs on error)
     }
@@ -1103,7 +1101,8 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_query(
 
         if(follow_up_decode_prompt_and_sys_prompt_end_delim)
         {
-            if(!decode_prompt_and_sys_prompt_end_delim(prompt, slot_index))
+            if(!decode_prompt_and_sys_prompt_end_delim(
+                    prompt, *s_slots[slot_index]))
             {
                 return false; // (called function logs on error)
             }
