@@ -803,15 +803,15 @@ static llama_sampler* create_sampler(
  * - Works for pooling type "rank", only.
  */
 static std::vector<float> rerank_batch_decode(
-    llama_batch& batch, int const slot_index)
+    llama_batch& batch, mt_llm_s const & s)
 {
     std::vector<float> ret_val;
 
     ret_val.clear(); // Necessary?
 
-    clear_llama_memory(s_slots[slot_index]->ctx);
+    clear_llama_memory(s.ctx);
 
-    if(llama_decode(s_slots[slot_index]->ctx, batch) != 0)
+    if(llama_decode(s.ctx, batch) != 0)
     {
         assert(ret_val.size() == 0);
         return ret_val;
@@ -822,8 +822,7 @@ static std::vector<float> rerank_batch_decode(
         assert(batch.logits[i] != 0); // Must be configured this way.
 
         int const embd_pos = batch.seq_id[i][0];
-        float const * const embd = llama_get_embeddings_seq(
-            s_slots[slot_index]->ctx, embd_pos);
+        float const * const embd = llama_get_embeddings_seq(s.ctx, embd_pos);
 
         if(embd == nullptr)
         {
@@ -1491,7 +1490,7 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_rerank(
             // No more capacity left, decode & add remember current scores:
 
             std::vector<float> const cur_scores = rerank_batch_decode(
-                batch, slot_index);
+                batch, *s_slots[slot_index]);
 
             if(cur_scores.empty())
             {
@@ -1521,7 +1520,7 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_rerank(
     }
 
     std::vector<float> const final_scores = rerank_batch_decode(
-        batch, slot_index);
+        batch, *s_slots[slot_index]);
 
     llama_batch_free(batch);
 
