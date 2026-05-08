@@ -659,7 +659,7 @@ static bool inference(mt_llm_s& s)
     std::vector<float> dig_probs;
 
     // Maximum count of tokens the context can hold.
-    int const max_tok_cnt =  static_cast<int>(llama_n_ctx(s.ctx));
+    int const max_tok_cnt = static_cast<int>(llama_n_ctx(s.ctx));
 
     while(s.tok_cnt < max_tok_cnt)
     {
@@ -687,9 +687,9 @@ static bool inference(mt_llm_s& s)
         // (assumes that the sampling of all former whitespaces was "correct",
         // which is kind of wrong, but OK in practice):
         if(s.last_tok_type == MT_TOK_TYPE_SAMPLED_NON_EOG_NON_CONTROL
-                && dig_probs.empty() // <=> No non-whitespace sampled, yet.
-                && !piece.empty()
-                && !is_whitespace_only(piece.c_str()))
+            && dig_probs.empty() // <=> No non-whitespace sampled, yet.
+            && !piece.empty()
+            && !is_whitespace_only(piece.c_str()))
         {
             dig_probs = create_dig_probs(s);
         }
@@ -753,27 +753,21 @@ static llama_sampler* create_sampler(
 
         llama_sampler_chain_add(
             ret_val,
-            llama_sampler_init_grammar(
-                vocab, p.grammar, grammar_root));
+            llama_sampler_init_grammar(vocab, p.grammar, grammar_root));
     }
 
-    llama_sampler_chain_add(
-        ret_val, llama_sampler_init_top_k(p.top_k));
+    llama_sampler_chain_add(ret_val, llama_sampler_init_top_k(p.top_k));
 
     llama_sampler_chain_add(
-        ret_val,
-        llama_sampler_init_top_p(p.top_p, min_keep));
+        ret_val, llama_sampler_init_top_p(p.top_p, min_keep));
 
     llama_sampler_chain_add(
-        ret_val,
-        llama_sampler_init_min_p(p.min_p, min_keep));
+        ret_val, llama_sampler_init_min_p(p.min_p, min_keep));
 
-    llama_sampler_chain_add(
-        ret_val, llama_sampler_init_temp(p.temp));
+    llama_sampler_chain_add(ret_val, llama_sampler_init_temp(p.temp));
 
     assert(LLAMA_DEFAULT_SEED == static_cast<uint32_t>(-1));
-    llama_sampler_chain_add(
-        ret_val, llama_sampler_init_dist(p.seed));
+    llama_sampler_chain_add(ret_val, llama_sampler_init_dist(p.seed));
 
     return ret_val;
 }
@@ -1044,9 +1038,7 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_query(
         assert(!follow_up_decode_prompt_and_sys_prompt_end_delim);
 
         if(!decode_initial_query(
-                prompt,
-                s,
-                skip_sys_prompt_end_delim_and_inference))
+                prompt, s, skip_sys_prompt_end_delim_and_inference))
         {
             return false; // (called function logs on error)
         }
