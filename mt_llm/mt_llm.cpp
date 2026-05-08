@@ -1677,8 +1677,10 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_reinit(
         return false;
     }
 
-    s_slots[slot_index]->mt_p = mt_llm_p_create_copy(*mt_p);
-    if(s_slots[slot_index]->mt_p == nullptr)
+    mt_llm_s& s = *s_slots[slot_index];
+
+    s.mt_p = mt_llm_p_create_copy(*mt_p);
+    if(s.mt_p == nullptr)
     {
         MT_LOG_ERR("Failed to deep-copy parameters!\n");
         mt_llm_deinit(slot_index);
@@ -1688,19 +1690,16 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_reinit(
     // Do not use mt_p from here on!
 
     // If not given, automatically set the thread count:
-    //
-    if(s_slots[slot_index]->mt_p->threads == 0)
+    if(s.mt_p->threads == 0)
     {
-        s_slots[slot_index]->mt_p->threads =
-            (uint32_t)common_cpu_get_num_physical_cores();
-        assert(0 < s_slots[slot_index]->mt_p->threads);
+        s.mt_p->threads = (uint32_t)common_cpu_get_num_physical_cores();
+        assert(0 < s.mt_p->threads);
     }
 
     // Do not change s_slots[slot_index]->mt_p properties from here on, with
     // the exception of prompts (see below)!
 
     // Initialize the inference engine:
-    //
     init_backend_if_necessary();
 
     // TODO: If the other slot is already initialized and all model-related
@@ -1708,10 +1707,8 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_reinit(
     //       model (not the context!), here!
     // 
     // Initialize the model:
-    //
-    s_slots[slot_index]->model = mt_llm_model_create(
-        *s_slots[slot_index]->mt_p);
-    if (s_slots[slot_index]->model == nullptr)
+    s.model = mt_llm_model_create(*s.mt_p);
+    if (s.model == nullptr)
     {
         MT_LOG_ERR("Unable to load model!\n");
         mt_llm_deinit(slot_index);
@@ -1720,11 +1717,8 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_reinit(
 
     // Initialize the sampling (unnecessary for embeddings creation and
     // reranking usage):
-    //
-    s_slots[slot_index]->sampler = create_sampler(
-        llama_model_get_vocab(s_slots[slot_index]->model->model),
-        *s_slots[slot_index]->mt_p);
-    if(s_slots[slot_index]->sampler == nullptr)
+    s.sampler = create_sampler(llama_model_get_vocab(s.model->model), *s.mt_p);
+    if(s.sampler == nullptr)
     {
         MT_LOG_ERR("Unable to create sampler!\n");
         mt_llm_deinit(slot_index);
@@ -1734,8 +1728,7 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_reinit(
     // Support for models with an encoder is currently not implemented (for
     // embeddings and reranking, models with encoder AND decoder are not
     // supported, anyway):
-    //
-    if(llama_model_has_encoder(s_slots[slot_index]->model->model))
+    if(llama_model_has_encoder(s.model->model))
     {
         MT_LOG_ERR("Model has an encoder, that is currently not supported!\n");
         mt_llm_deinit(slot_index);
@@ -1744,12 +1737,9 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_reinit(
 
     // Modify prompt strings by model (name), if wanted (maybe unnecessary for
     // embeddings creation and reranking usage):
-    //
-    if(s_slots[slot_index]->mt_p->try_prompts_by_model != 0)
+    if(s.mt_p->try_prompts_by_model != 0)
     {
-        mt_llm_model_try_set_prompts(
-            *s_slots[slot_index]->model, *s_slots[slot_index]->mt_p);
-        //
+        mt_llm_model_try_set_prompts(*s.model, *s.mt_p);
         // Return value ignored, as called function logs (and this is no error).
     }
     else
@@ -1758,14 +1748,12 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_reinit(
     }
     
     // Do not change any s_slots[slot_index]->mt_p properties from here on!
-    //
-    mt_llm_p_print(*s_slots[slot_index]->mt_p);
+    mt_llm_p_print(*s.mt_p);
 
     // Initialize the context:
 
-    s_slots[slot_index]->ctx = mt_llm_ctx_create(
-        *s_slots[slot_index]->mt_p, *s_slots[slot_index]->model);
-    if (s_slots[slot_index]->ctx == nullptr)
+    s.ctx = mt_llm_ctx_create(*s.mt_p, *s.model);
+    if (s.ctx == nullptr)
     {
         MT_LOG_ERR("Creating context!\n");
         mt_llm_deinit(slot_index);
@@ -1773,21 +1761,18 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_reinit(
     }
 
     {
-        int32_t const n_ctx_train = llama_model_n_ctx_train(
-                    s_slots[slot_index]->model->model),
-            n_ctx_ctx = static_cast<int32_t>(
-                llama_n_ctx(s_slots[slot_index]->ctx)); // Bold cast?
+        int32_t const n_ctx_train = llama_model_n_ctx_train(s.model->model),
+            n_ctx_ctx = static_cast<int32_t>(llama_n_ctx(s.ctx)); // Bold cast?
 
         if(n_ctx_train < n_ctx_ctx)
         {
             // For non-embedding, non-reranking, interpreted as error here (by
             // definition):
-            if(s_slots[slot_index]->mt_p->emb_or_rerank == 0)
+            if(s.mt_p->emb_or_rerank == 0)
             {
                 assert(
-                    s_slots[slot_index]->mt_p->n_ctx == 0
-                        || static_cast<int32_t>(
-                            s_slots[slot_index]->mt_p->n_ctx) == n_ctx_ctx);
+                    s.mt_p->n_ctx == 0
+                        || static_cast<int32_t>(s.mt_p->n_ctx) == n_ctx_ctx);
 
                 MT_LOG_ERR(
                     "Model was trained on %d tokens (wanted %d tokens)!\n",
@@ -1807,19 +1792,17 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_reinit(
 
     MT_LOG("System info: %s\n", llama_print_system_info());
 
-    s_slots[slot_index]->last_tok_type = 0;
-    s_slots[slot_index]->tok_cnt = 0;
+    s.last_tok_type = 0;
+    s.tok_cnt = 0;
 
-    if(llama_model_chat_template(s_slots[slot_index]->model->model, nullptr)
-        != nullptr)
+    if(llama_model_chat_template(s.model->model, nullptr) != nullptr)
     {
         bool const use_jinja = true;
         std::string chat_template; // Empty
         std::map<std::string, std::string> template_kwargs; // Empty
 
         common_chat_templates_ptr const chat_templates =
-            common_chat_templates_init(
-                s_slots[slot_index]->model->model, chat_template);
+            common_chat_templates_init(s.model->model, chat_template);
 
         std::string const chat_format_example = common_chat_format_example(
             chat_templates.get(), use_jinja, template_kwargs);
