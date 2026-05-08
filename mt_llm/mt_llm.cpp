@@ -557,21 +557,15 @@ static std::string get_response_tok_eog_str(mt_llm_s const & s)
 /**
  * - To be used by inference().
  */
-static void decode_irq_tokens(int const slot_index)
+static void decode_irq_tokens(mt_llm_s& s)
 {
-    assert(slot_index == 0 || slot_index == 1);
-    assert(s_slots[slot_index] != nullptr);
-
     // Adding EOG token, only (e.g. using "..." plus EOG token can trigger that
     // the LLM also uses "..." in its responses).
 
     if(!decode_str(
             // Overdone token -> string -> token pipeline, but to be able to use
             // decode_str() function, only:
-            get_response_tok_eog_str(*s_slots[slot_index]).c_str(),
-            MT_TOK_TYPE_IRQ,
-            *s_slots[slot_index],
-            true))
+            get_response_tok_eog_str(s).c_str(), MT_TOK_TYPE_IRQ, s, true))
     {
         MT_LOG_ERR("Decoding IRQ EOG token!\n");
     }
@@ -708,7 +702,7 @@ static bool inference(int const slot_index)
             // Only interrupt actual response to the user (also see below).
             && s->last_tok_type == MT_TOK_TYPE_SAMPLED_NON_EOG_NON_CONTROL)
         {
-            decode_irq_tokens(slot_index); // Called function logs on error.
+            decode_irq_tokens(*s); // Called function logs on error.
             break;
         }
 
