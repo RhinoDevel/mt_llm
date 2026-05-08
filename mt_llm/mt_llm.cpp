@@ -624,17 +624,14 @@ static void decode_irq_tokens(int const slot_index)
 /**
  * - To be used by inference().
  */
-static bool decode_inferred_token(int const slot_index, llama_token const tok)
+static bool decode_inferred_token(mt_llm_s& s, llama_token const tok)
 {
-    assert(slot_index == 0 || slot_index == 1);
-    assert(s_slots[slot_index] != nullptr);
-
     std::vector<llama_token> tokens{ tok };
 
     if(!decode_tokens(
             tokens,
-            s_slots[slot_index]->last_tok_type, // <- No change (see caller).
-            *s_slots[slot_index],
+            s.last_tok_type, // <- No change (see caller).
+            s,
             false))
     {
         MT_LOG_ERR("Decoding inferred token!\n");
@@ -783,7 +780,7 @@ static bool inference(int const slot_index)
 
         // Do NOT use the piece for this to make sure, that the exact same token
         // is added to the context:
-        if(!decode_inferred_token(slot_index, new_tok_id))
+        if(!decode_inferred_token(*s, new_tok_id))
         {
             break; // Called function logged.
         }
