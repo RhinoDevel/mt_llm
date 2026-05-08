@@ -677,66 +677,60 @@ static std::vector<float> create_dig_probs(mt_llm_s const & s)
     return ret_val;
 }
 
-static bool inference(int const slot_index)
+static bool inference(mt_llm_s& s)
 {
-    assert(slot_index == 0 || slot_index == 1);
-    assert(s_slots[slot_index] != nullptr);
-
-    struct mt_llm_s * const s = s_slots[slot_index];
-
     // For performance measurement:
     int64_t const t_main_start = ggml_time_us();
-    int const initial_tok_cnt = s->tok_cnt;
+    int const initial_tok_cnt = s.tok_cnt;
 
     bool irq = false; // Callback sets this to true, if interrupt is requested.
     std::vector<float> dig_probs;
 
     // Maximum count of tokens the context can hold.
-    int const max_tok_cnt =  static_cast<int>(llama_n_ctx(s->ctx));
+    int const max_tok_cnt =  static_cast<int>(llama_n_ctx(s.ctx));
 
-    while(s->tok_cnt < max_tok_cnt)
+    while(s.tok_cnt < max_tok_cnt)
     {
         // Space for at least one token is left in context, if getting here.
 
         if(irq // <- An interrupt of the inference was requested.
             // Only interrupt actual response to the user (also see below).
-            && s->last_tok_type == MT_TOK_TYPE_SAMPLED_NON_EOG_NON_CONTROL)
+            && s.last_tok_type == MT_TOK_TYPE_SAMPLED_NON_EOG_NON_CONTROL)
         {
-            decode_irq_tokens(*s); // Called function logs on error.
+            decode_irq_tokens(s); // Called function logs on error.
             break;
         }
 
         llama_token const new_tok_id = llama_sampler_sample(
-            s->sampler, s->ctx, -1);
-        std::string const piece = mt_llm_ctx_get_piece_from(
-            *s->ctx, new_tok_id);
+            s.sampler, s.ctx, -1);
+        std::string const piece = mt_llm_ctx_get_piece_from(*s.ctx, new_tok_id);
 
-        s->last_tok_type = get_sampled_tok_type(*s, new_tok_id, piece);
+        s.last_tok_type = get_sampled_tok_type(s, new_tok_id, piece);
 
         // Calculate probabilities of all digits for first sampled non-EOG,
         // non-control, non-whitespace, non-thinking, non-empty-piece token
         // (assumes that the sampling of all former whitespaces was "correct",
         // which is kind of wrong, but OK in practice):
-        if(s->last_tok_type == MT_TOK_TYPE_SAMPLED_NON_EOG_NON_CONTROL
+        if(s.last_tok_type == MT_TOK_TYPE_SAMPLED_NON_EOG_NON_CONTROL
                 && dig_probs.empty() // <=> No non-whitespace sampled, yet.
                 && !piece.empty()
                 && !is_whitespace_only(piece.c_str()))
         {
-            dig_probs = create_dig_probs(*s);
+            dig_probs = create_dig_probs(s);
         }
 
-    	irq = callback_handler(new_tok_id, piece, dig_probs, *s)
+    	irq = callback_handler(new_tok_id, piece, dig_probs, s)
                 || irq; // <- Don't overwrite already received IRQ (see above).
 
         // Do NOT use the piece for this to make sure, that the exact same token
         // is added to the context:
-        if(!decode_inferred_token(*s, new_tok_id))
+        if(!decode_inferred_token(s, new_tok_id))
         {
             break; // Called function logged.
         }
 
         // Break, if some kind of EOG token was generated.
-        if (s->last_tok_type == MT_TOK_TYPE_SAMPLED_EOG)
+        if (s.last_tok_type == MT_TOK_TYPE_SAMPLED_EOG)
         {
             break;
         }
@@ -745,7 +739,7 @@ static bool inference(int const slot_index)
     {
         float const t_decode_seconds =
             static_cast<float>(ggml_time_us() - t_main_start) / 1000000.0f;
-        int const n_decode = s->tok_cnt - initial_tok_cnt;
+        int const n_decode = s.tok_cnt - initial_tok_cnt;
 
         MT_LOG(
             "Decoded %d tokens in %.2fs, speed: %.2f t/s.\n",
@@ -754,7 +748,7 @@ static bool inference(int const slot_index)
             static_cast<float>(n_decode) / t_decode_seconds);
     }
 
-    return s->last_tok_type == MT_TOK_TYPE_SAMPLED_EOG;
+    return s.last_tok_type == MT_TOK_TYPE_SAMPLED_EOG;
 }
 
 /**
@@ -1102,7 +1096,7 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_query(
 
     if(!skip_sys_prompt_end_delim_and_inference)
     {
-        if(!inference(slot_index))
+        if(!inference(*s_slots[slot_index]))
         {
             return false; // (called function logs on error)
         }
