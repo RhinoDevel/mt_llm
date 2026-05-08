@@ -249,11 +249,9 @@ static bool decode_tokens(
 static bool decode_str(
     char const * const str,
     int const tok_type,
-    int const slot_index,
+    mt_llm_s& s,
     bool const use_callback)
 {
-    assert(slot_index == 0 || slot_index == 1);
-
     std::vector<llama_token> tokens;
 
     if(str[0] == '\0')
@@ -263,7 +261,7 @@ static bool decode_str(
 
     // Tokenize the given string:
     tokens = mt_llm_ctx_tokenize(
-        *s_slots[slot_index]->ctx,
+        *s.ctx,
         str,
         false); // No adding of BOS and/or EOS [is both model-dependent].
 
@@ -277,7 +275,7 @@ static bool decode_str(
 //    }
 //#endif //NDEBUG
 
-    return decode_tokens(tokens, tok_type, *s_slots[slot_index], use_callback);
+    return decode_tokens(tokens, tok_type, s, use_callback);
 }
 
 static bool decode_some_prompt_end_delim_with_thinking(
@@ -328,7 +326,7 @@ static bool decode_some_prompt_end_delim_with_thinking(
     if(!decode_str(
             str_some_prompt_end_delim.c_str(),
             MT_TOK_TYPE_DELIM,
-            slot_index,
+            *s_slots[slot_index],
             true))
     {
         MT_LOG_ERR("Decoding some prompt end delimiter!\n");
@@ -339,7 +337,7 @@ static bool decode_some_prompt_end_delim_with_thinking(
         if(!decode_str(
                 s_slots[slot_index]->mt_p->think_beg_delim,
                 MT_TOK_TYPE_THINK_BEGIN,
-                slot_index,
+                *s_slots[slot_index],
                 true))
         {
             MT_LOG_ERR("Decoding thinking prompt begin delimiter after some prompt!\n");
@@ -363,7 +361,7 @@ static bool decode_some_prompt_end_delim_with_thinking(
                 decode_think_beg_delim
                     ? MT_TOK_TYPE_THINK_TEXT
                     : MT_TOK_TYPE_DELIM,
-                slot_index,
+                *s_slots[slot_index],
                 true))
         {
             MT_LOG_ERR("Decoding some prompt middle newlines!\n");
@@ -375,7 +373,7 @@ static bool decode_some_prompt_end_delim_with_thinking(
         if(!decode_str(
                 s_slots[slot_index]->mt_p->think_end_delim,
                 MT_TOK_TYPE_THINK_END,
-                slot_index,
+                *s_slots[slot_index],
                 true))
         {
             MT_LOG_ERR("Decoding thinking prompt end delimiter after some prompt!\n");
@@ -399,7 +397,7 @@ static bool decode_some_prompt_end_delim_with_thinking(
                 decode_think_beg_delim && !decode_think_end_delim
                     ? MT_TOK_TYPE_THINK_TEXT
                     : MT_TOK_TYPE_DELIM,
-                slot_index,
+                *s_slots[slot_index],
                 true))
         {
             MT_LOG_ERR("Decoding some prompt end delimiter's trailing newlines!\n");
@@ -427,7 +425,7 @@ static bool decode_sys_prompt_end_delim(int const slot_index)
         if(!decode_str(
             s_slots[slot_index]->mt_p->sys_prompt_end_delim,
             MT_TOK_TYPE_DELIM,
-            slot_index,
+            *s_slots[slot_index],
             true))
         {
             MT_LOG_ERR("Decoding system prompt end delimiter (1)!\n");
@@ -451,7 +449,7 @@ static bool decode_initial_query(
     if(!decode_str(
             s_slots[slot_index]->mt_p->sys_prompt_beg_delim,
             MT_TOK_TYPE_DELIM,
-            slot_index,
+            *s_slots[slot_index],
             true))
     {
         MT_LOG_ERR("Decoding system prompt begin delimiter!\n");
@@ -460,7 +458,7 @@ static bool decode_initial_query(
     if(!decode_str(
             s_slots[slot_index]->mt_p->sys_prompt,
             MT_TOK_TYPE_SYS_PROMPT,
-            slot_index,
+            *s_slots[slot_index],
             true))
     {
         MT_LOG_ERR("Decoding system prompt!\n");
@@ -469,7 +467,7 @@ static bool decode_initial_query(
     if(!decode_str(
             s_slots[slot_index]->mt_p->sys_prompt_mid_delim,
             MT_TOK_TYPE_DELIM,
-            slot_index,
+            *s_slots[slot_index],
             true))
     {
         MT_LOG_ERR("Decoding system prompt middle delimiter!\n");
@@ -478,7 +476,7 @@ static bool decode_initial_query(
     if(!decode_str(
             prompt,
             MT_TOK_TYPE_PROMPT,
-            slot_index,
+            *s_slots[slot_index],
             true))
     {
         MT_LOG_ERR("Decoding prompt!\n");
@@ -517,7 +515,7 @@ static bool decode_prompt_and_sys_prompt_end_delim(
     assert(s_slots[slot_index]->mt_p->sys_prompt[0] != '\0');
     assert(prompt != nullptr && prompt[0] != '\0');
 
-    if(!decode_str(prompt, MT_TOK_TYPE_PROMPT, slot_index, true))
+    if(!decode_str(prompt, MT_TOK_TYPE_PROMPT, *s_slots[slot_index], true))
     {
         MT_LOG_ERR("Decoding prompt!\n");
         return false;
@@ -542,13 +540,13 @@ static bool decode_follow_up_query(
     if(!decode_str(
             s_slots[slot_index]->mt_p->prompt_beg_delim,
             MT_TOK_TYPE_DELIM,
-            slot_index,
+            *s_slots[slot_index],
             true))
     {
         MT_LOG_ERR("Decoding prompt begin delimiter!\n");
         return false;
     }
-    if(!decode_str(prompt, MT_TOK_TYPE_PROMPT, slot_index, true))
+    if(!decode_str(prompt, MT_TOK_TYPE_PROMPT, *s_slots[slot_index], true))
     {
         MT_LOG_ERR("Decoding prompt!\n");
         return false;
@@ -562,7 +560,7 @@ static bool decode_follow_up_query(
         if(!decode_str(
                 s_slots[slot_index]->mt_p->prompt_end_delim,
                 MT_TOK_TYPE_DELIM,
-                slot_index,
+                *s_slots[slot_index],
                 true))
         {
             MT_LOG_ERR("Decoding prompt end delimiter (1)!\n");
@@ -614,7 +612,7 @@ static void decode_irq_tokens(int const slot_index)
             // decode_str() function, only:
             get_response_tok_eog_str(*s_slots[slot_index]).c_str(),
             MT_TOK_TYPE_IRQ,
-            slot_index,
+            *s_slots[slot_index],
             true))
     {
         MT_LOG_ERR("Decoding IRQ EOG token!\n");
@@ -1065,7 +1063,7 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_decode_response(
             response,
             // Not really sampled here..
             MT_TOK_TYPE_SAMPLED_NON_EOG_NON_CONTROL,
-            slot_index,
+            *s_slots[slot_index],
             true))
     {
         MT_LOG_ERR("Decoding (given) response failed!\n");
@@ -1075,7 +1073,7 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_decode_response(
     if(!decode_str(
             get_response_tok_eog_str(*s_slots[slot_index]).c_str(),
             MT_TOK_TYPE_SAMPLED_EOG, // Not really sampled here..
-            slot_index,
+            *s_slots[slot_index],
             true))
     {
         MT_LOG_ERR("Decoding (given) response's EOG token failed!\n");
