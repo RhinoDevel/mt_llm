@@ -240,8 +240,12 @@ bool mt_llm_ctx_decode(
     mt_llm_s const &s,
     std::vector<llama_token>& tokens,
     int& decoded_token_count,
-    bool(*callback)(llama_token, std::string const &, std::vector<float> const &, mt_llm_s const &))
+    bool(*callback)(llama_token, std::string const &, std::vector<float> const &, mt_llm_s const &),
+    std::vector<float> const & dig_probs,
+    bool& irq)
 {
+    irq = false;
+
     llama_vocab const * const vocab =
         llama_model_get_vocab(llama_get_model(s.ctx));
 
@@ -259,11 +263,11 @@ bool mt_llm_ctx_decode(
     for(int i = 0; i < tok_count; ++i)
     {
         if(!decode_single_token(
-            s.ctx,
-            s.sampler,
-            s.tok_cnt + i,
-            tokens[i],
-            i + 1 == tok_count))
+                s.ctx,
+                s.sampler,
+                s.tok_cnt + i,
+                tokens[i],
+                i + 1 == tok_count))
         {
             return false; // (called function logged)
         }
@@ -272,10 +276,10 @@ bool mt_llm_ctx_decode(
 
         if(callback != nullptr)
         {
-            callback( // (return value ignored)
+            irq = callback(
                 tokens[i],
                 mt_llm_ctx_get_piece_from(*s.ctx, tokens[i]),
-                std::vector<float>(),
+                dig_probs,
                 s);
         }
     }

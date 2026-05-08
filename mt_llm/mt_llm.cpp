@@ -212,7 +212,8 @@ static bool decode_tokens(
     std::vector<llama_token>& tokens,
     int const tok_type,
     mt_llm_s& s,
-    bool const use_callback)
+    std::vector<float> const & dig_probs,
+    bool& irq)
 {
     int decoded_tok_cnt = 0;
 
@@ -222,7 +223,9 @@ static bool decode_tokens(
         s,
         tokens,
         decoded_tok_cnt,
-        use_callback ? callback_handler : nullptr);
+        callback_handler,
+        dig_probs,
+        irq);
 
     // Will be correct on error, too:
     assert(0 <= decoded_tok_cnt);
@@ -249,9 +252,9 @@ static bool decode_tokens(
 static bool decode_str(
     char const * const str,
     int const tok_type,
-    mt_llm_s& s,
-    bool const use_callback)
+    mt_llm_s& s)
 {
+    bool irq_dummy; // IRQ is ignored, here.
     std::vector<llama_token> tokens;
 
     if(str[0] == '\0')
@@ -275,7 +278,12 @@ static bool decode_str(
 //    }
 //#endif //NDEBUG
 
-    return decode_tokens(tokens, tok_type, s, use_callback);
+    return decode_tokens(
+        tokens,
+        tok_type,
+        s,
+        std::vector<float>(),
+        irq_dummy);
 }
 
 static bool decode_some_prompt_end_delim_with_thinking(
@@ -322,7 +330,7 @@ static bool decode_some_prompt_end_delim_with_thinking(
     }
 
     if(!decode_str(
-            str_some_prompt_end_delim.c_str(), MT_TOK_TYPE_DELIM, s, true))
+            str_some_prompt_end_delim.c_str(), MT_TOK_TYPE_DELIM, s))
     {
         MT_LOG_ERR("Decoding some prompt end delimiter!\n");
         return false;
@@ -330,7 +338,7 @@ static bool decode_some_prompt_end_delim_with_thinking(
     if(decode_think_beg_delim)
     {
         if(!decode_str(
-                s.mt_p->think_beg_delim, MT_TOK_TYPE_THINK_BEGIN, s, true))
+                s.mt_p->think_beg_delim, MT_TOK_TYPE_THINK_BEGIN, s))
         {
             MT_LOG_ERR("Decoding thinking prompt begin delimiter after some prompt!\n");
             return false;
@@ -353,8 +361,7 @@ static bool decode_some_prompt_end_delim_with_thinking(
                 decode_think_beg_delim
                     ? MT_TOK_TYPE_THINK_TEXT
                     : MT_TOK_TYPE_DELIM,
-                s,
-                true))
+                s))
         {
             MT_LOG_ERR("Decoding some prompt middle newlines!\n");
             return false;
@@ -362,7 +369,7 @@ static bool decode_some_prompt_end_delim_with_thinking(
     }
     if(decode_think_end_delim)
     {
-        if(!decode_str(s.mt_p->think_end_delim, MT_TOK_TYPE_THINK_END, s, true))
+        if(!decode_str(s.mt_p->think_end_delim, MT_TOK_TYPE_THINK_END, s))
         {
             MT_LOG_ERR("Decoding thinking prompt end delimiter after some prompt!\n");
             return false;
@@ -385,8 +392,7 @@ static bool decode_some_prompt_end_delim_with_thinking(
                 decode_think_beg_delim && !decode_think_end_delim
                     ? MT_TOK_TYPE_THINK_TEXT
                     : MT_TOK_TYPE_DELIM,
-                s,
-                true))
+                s))
         {
             MT_LOG_ERR("Decoding some prompt end delimiter's trailing newlines!\n");
             return false;
@@ -412,8 +418,7 @@ static bool decode_sys_prompt_end_delim(mt_llm_s& s)
         if(!decode_str(
             s.mt_p->sys_prompt_end_delim,
             MT_TOK_TYPE_DELIM,
-            s,
-            true))
+            s))
         {
             MT_LOG_ERR("Decoding system prompt end delimiter (1)!\n");
             return false;
@@ -432,22 +437,22 @@ static bool decode_initial_query(
     assert(s.mt_p->sys_prompt[0] != '\0');
     assert(prompt != nullptr && prompt[0] != '\0');
 
-    if(!decode_str(s.mt_p->sys_prompt_beg_delim, MT_TOK_TYPE_DELIM, s, true))
+    if(!decode_str(s.mt_p->sys_prompt_beg_delim, MT_TOK_TYPE_DELIM, s))
     {
         MT_LOG_ERR("Decoding system prompt begin delimiter!\n");
         return false;
     }
-    if(!decode_str(s.mt_p->sys_prompt, MT_TOK_TYPE_SYS_PROMPT, s, true))
+    if(!decode_str(s.mt_p->sys_prompt, MT_TOK_TYPE_SYS_PROMPT, s))
     {
         MT_LOG_ERR("Decoding system prompt!\n");
         return false;
     }
-    if(!decode_str(s.mt_p->sys_prompt_mid_delim, MT_TOK_TYPE_DELIM, s, true))
+    if(!decode_str(s.mt_p->sys_prompt_mid_delim, MT_TOK_TYPE_DELIM, s))
     {
         MT_LOG_ERR("Decoding system prompt middle delimiter!\n");
         return false;
     }
-    if(!decode_str(prompt, MT_TOK_TYPE_PROMPT, s, true))
+    if(!decode_str(prompt, MT_TOK_TYPE_PROMPT, s))
     {
         MT_LOG_ERR("Decoding prompt!\n");
         return false;
@@ -483,7 +488,7 @@ static bool decode_prompt_and_sys_prompt_end_delim(
     assert(s.mt_p->sys_prompt[0] != '\0');
     assert(prompt != nullptr && prompt[0] != '\0');
 
-    if(!decode_str(prompt, MT_TOK_TYPE_PROMPT, s, true))
+    if(!decode_str(prompt, MT_TOK_TYPE_PROMPT, s))
     {
         MT_LOG_ERR("Decoding prompt!\n");
         return false;
@@ -503,12 +508,12 @@ static bool decode_follow_up_query(char const * const prompt, mt_llm_s& s)
 {
     assert(prompt != nullptr && prompt[0] != '\0');
 
-    if(!decode_str(s.mt_p->prompt_beg_delim, MT_TOK_TYPE_DELIM, s, true))
+    if(!decode_str(s.mt_p->prompt_beg_delim, MT_TOK_TYPE_DELIM, s))
     {
         MT_LOG_ERR("Decoding prompt begin delimiter!\n");
         return false;
     }
-    if(!decode_str(prompt, MT_TOK_TYPE_PROMPT, s, true))
+    if(!decode_str(prompt, MT_TOK_TYPE_PROMPT, s))
     {
         MT_LOG_ERR("Decoding prompt!\n");
         return false;
@@ -519,7 +524,7 @@ static bool decode_follow_up_query(char const * const prompt, mt_llm_s& s)
         // Simple case, where there are no thinking/reasoning delimiters.
         assert(s.mt_p->think_end_delim[0] == '\0');
 
-        if(!decode_str(s.mt_p->prompt_end_delim, MT_TOK_TYPE_DELIM, s, true))
+        if(!decode_str(s.mt_p->prompt_end_delim, MT_TOK_TYPE_DELIM, s))
         {
             MT_LOG_ERR("Decoding prompt end delimiter (1)!\n");
             return false;
@@ -565,29 +570,10 @@ static void decode_irq_tokens(mt_llm_s& s)
     if(!decode_str(
             // Overdone token -> string -> token pipeline, but to be able to use
             // decode_str() function, only:
-            get_response_tok_eog_str(s).c_str(), MT_TOK_TYPE_IRQ, s, true))
+            get_response_tok_eog_str(s).c_str(), MT_TOK_TYPE_IRQ, s))
     {
         MT_LOG_ERR("Decoding IRQ EOG token!\n");
     }
-}
-
-/**
- * - To be used by inference().
- */
-static bool decode_inferred_token(mt_llm_s& s, llama_token const tok)
-{
-    std::vector<llama_token> tokens{ tok };
-
-    if(!decode_tokens(
-            tokens,
-            s.last_tok_type, // <- No change (see caller).
-            s,
-            false))
-    {
-        MT_LOG_ERR("Decoding inferred token!\n");
-        return false;
-    }
-    return true;
 }
 
 /**
@@ -691,6 +677,9 @@ static bool inference(mt_llm_s& s)
 
     while(s.tok_cnt < max_tok_cnt)
     {
+        bool cur_irq = false;
+        std::vector<llama_token> tokens;
+
         // Space for at least one token is left in context, if getting here.
 
         if(irq // <- An interrupt of the inference was requested.
@@ -719,15 +708,20 @@ static bool inference(mt_llm_s& s)
             dig_probs = create_dig_probs(s);
         }
 
-    	irq = callback_handler(new_tok_id, piece, dig_probs, s)
-                || irq; // <- Don't overwrite already received IRQ (see above).
-
-        // Do NOT use the piece for this to make sure, that the exact same token
-        // is added to the context:
-        if(!decode_inferred_token(s, new_tok_id))
+        // (do NOT use the piece for this to make sure, that the exact same
+        // token is added to the context)
+        tokens.push_back(new_tok_id);
+        if(!decode_tokens(
+                tokens,
+                s.last_tok_type,
+                s,
+                dig_probs,
+                cur_irq))
         {
-            break; // Called function logged.
+            MT_LOG_ERR("Decoding inferred token!\n");
+            break;
         }
+        irq = irq || cur_irq; // Don't overwrite alr. received IRQ (see above).
 
         // Break, if some kind of EOG token was generated.
         if (s.last_tok_type == MT_TOK_TYPE_SAMPLED_EOG)
@@ -1010,8 +1004,7 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_decode_response(
             response,
             // Not really sampled here..
             MT_TOK_TYPE_SAMPLED_NON_EOG_NON_CONTROL,
-            s,
-            true))
+            s))
     {
         MT_LOG_ERR("Decoding (given) response failed!\n");
         return false;
@@ -1020,8 +1013,7 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_decode_response(
     if(!decode_str(
             get_response_tok_eog_str(s).c_str(),
             MT_TOK_TYPE_SAMPLED_EOG, // Not really sampled here..
-            s,
-            true))
+            s))
     {
         MT_LOG_ERR("Decoding (given) response's EOG token failed!\n");
         return false;

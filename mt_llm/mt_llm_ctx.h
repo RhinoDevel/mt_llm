@@ -30,7 +30,9 @@ bool mt_llm_ctx_decode(
     mt_llm_s const &s,
     std::vector<llama_token>& tokens,
     int& decoded_token_count,
-    bool(*callback)(llama_token, std::string const &, std::vector<float> const &, mt_llm_s const &));
+    bool(*callback)(llama_token, std::string const &, std::vector<float> const &, mt_llm_s const &),
+    std::vector<float> const & dig_probs,
+    bool& irq);
 
 /** Initialize the model.
  * 
