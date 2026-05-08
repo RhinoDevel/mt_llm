@@ -1595,36 +1595,40 @@ MT_EXPORT_LLM_API void __stdcall mt_llm_reset(
 
 MT_EXPORT_LLM_API void __stdcall mt_llm_deinit(int const slot_index)
 {
+    mt_llm_s* s = nullptr;
+
     if(slot_index != 0 && slot_index != 1)
     {
         MT_LOG("Warning: Unsupported slot index given, doing nothing.");
         return; // Just do nothing.
     }
 
-    if(s_slots[slot_index] == nullptr)
+    s = s_slots[slot_index];
+
+    if(s == nullptr)
     {
         return; // Just do nothing.
     }
 
-    if(s_slots[slot_index]->mt_p != nullptr)
+    if(s->mt_p != nullptr)
     {
-        mt_llm_p_free(s_slots[slot_index]->mt_p);
-        s_slots[slot_index]->mt_p = nullptr;
+        mt_llm_p_free(s->mt_p);
+        s->mt_p = nullptr;
     }
-    if(s_slots[slot_index]->ctx != nullptr)
+    if(s->ctx != nullptr)
     {
-        llama_free(s_slots[slot_index]->ctx);
-        s_slots[slot_index]->ctx = nullptr;
+        llama_free(s->ctx);
+        s->ctx = nullptr;
     }
-    if(s_slots[slot_index]->sampler != nullptr)
+    if(s->sampler != nullptr)
     {
-        llama_sampler_free(s_slots[slot_index]->sampler);
-        s_slots[slot_index]->sampler = nullptr;
+        llama_sampler_free(s->sampler);
+        s->sampler = nullptr;
     }
-    if(s_slots[slot_index]->model != nullptr)
+    if(s->model != nullptr)
     {
-        mt_llm_model_free(s_slots[slot_index]->model);
-        s_slots[slot_index]->model = nullptr;
+        mt_llm_model_free(s->model);
+        s->model = nullptr;
     }
 
     if(s_slots[0] == nullptr
@@ -1635,7 +1639,8 @@ MT_EXPORT_LLM_API void __stdcall mt_llm_deinit(int const slot_index)
         s_is_backend_init = false;
     }
 
-    free(s_slots[slot_index]);
+    free(s);
+    s = nullptr;
     s_slots[slot_index] = nullptr;
 }
 
