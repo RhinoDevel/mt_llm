@@ -1064,26 +1064,26 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_query(
         MT_LOG("Error: Unsupported slot index given, doing nothing.\n");
         return false;
     }
-
     if(s_slots[slot_index] == nullptr)
     {
         MT_LOG_ERR("Not intialized!\n");
         return false;
     }
 
-    if(s_slots[slot_index]->mt_p->emb_or_rerank != 0)
+    mt_llm_s& s = *s_slots[slot_index];
+
+    if(s.mt_p->emb_or_rerank != 0)
     {
         MT_LOG_ERR("Configured for embeddings creation or reranking usage!\n");
         return false;
     }
 
-    assert(s_slots[slot_index]->mt_p != nullptr);
-    assert(s_slots[slot_index]->model != nullptr);
-    assert(s_slots[slot_index]->ctx != nullptr);
-    assert(s_slots[slot_index]->sampler != nullptr);
+    assert(s.mt_p != nullptr);
+    assert(s.model != nullptr);
+    assert(s.ctx != nullptr);
+    assert(s.sampler != nullptr);
     
-    if(s_slots[slot_index]->tok_cnt == 0
-        && s_slots[slot_index]->mt_p->sys_prompt[0] != '\0')
+    if(s.tok_cnt == 0 && s.mt_p->sys_prompt[0] != '\0')
     {
         // Although it would be no problem, just not intended this way.
         assert(!follow_up_decode_prompt_and_sys_prompt_end_delim);
@@ -1125,7 +1125,7 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_query(
         }
     }
 
-    MT_LOG("Token count: %d.\n", s_slots[slot_index]->tok_cnt);
+    MT_LOG("Token count: %d.\n", s.tok_cnt);
     return true;
 }
 
