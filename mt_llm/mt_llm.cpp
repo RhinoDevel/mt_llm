@@ -211,17 +211,15 @@ static bool callback_handler(
 static bool decode_tokens(
     std::vector<llama_token>& tokens,
     int const tok_type,
-    int const slot_index,
+    mt_llm_s& s,
     bool const use_callback)
 {
-    assert(slot_index == 0 || slot_index == 1);
-
     int decoded_tok_cnt = 0;
 
-    s_slots[slot_index]->last_tok_type = tok_type;
+    s.last_tok_type = tok_type;
 
     bool const ret_val = mt_llm_ctx_decode(
-        *s_slots[slot_index],
+        s,
         tokens,
         decoded_tok_cnt,
         use_callback ? callback_handler : nullptr);
@@ -231,7 +229,7 @@ static bool decode_tokens(
     // Works, because function called above insert a BOS token into the vector,
     // if necessary:
     assert(!ret_val || decoded_tok_cnt == static_cast<int>(tokens.size()));
-    s_slots[slot_index]->tok_cnt += decoded_tok_cnt;
+    s.tok_cnt += decoded_tok_cnt;
 
     if(!ret_val)
     {
@@ -279,7 +277,7 @@ static bool decode_str(
 //    }
 //#endif //NDEBUG
 
-    return decode_tokens(tokens, tok_type, slot_index, use_callback);
+    return decode_tokens(tokens, tok_type, *s_slots[slot_index], use_callback);
 }
 
 static bool decode_some_prompt_end_delim_with_thinking(
@@ -636,7 +634,7 @@ static bool decode_inferred_token(int const slot_index, llama_token const tok)
     if(!decode_tokens(
             tokens,
             s_slots[slot_index]->last_tok_type, // <- No change (see caller).
-            slot_index,
+            *s_slots[slot_index],
             false))
     {
         MT_LOG_ERR("Decoding inferred token!\n");
