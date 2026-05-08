@@ -426,45 +426,28 @@ static bool decode_sys_prompt_end_delim(mt_llm_s& s)
 
 static bool decode_initial_query(
     char const * const prompt,
-    int const slot_index,
+    mt_llm_s& s,
     bool const skip_sys_prompt_end_delim)
 {
-    assert(slot_index == 0 || slot_index == 1);
-    assert(s_slots[slot_index]->mt_p->sys_prompt[0] != '\0');
+    assert(s.mt_p->sys_prompt[0] != '\0');
     assert(prompt != nullptr && prompt[0] != '\0');
 
-    if(!decode_str(
-            s_slots[slot_index]->mt_p->sys_prompt_beg_delim,
-            MT_TOK_TYPE_DELIM,
-            *s_slots[slot_index],
-            true))
+    if(!decode_str(s.mt_p->sys_prompt_beg_delim, MT_TOK_TYPE_DELIM, s, true))
     {
         MT_LOG_ERR("Decoding system prompt begin delimiter!\n");
         return false;
     }
-    if(!decode_str(
-            s_slots[slot_index]->mt_p->sys_prompt,
-            MT_TOK_TYPE_SYS_PROMPT,
-            *s_slots[slot_index],
-            true))
+    if(!decode_str(s.mt_p->sys_prompt, MT_TOK_TYPE_SYS_PROMPT, s, true))
     {
         MT_LOG_ERR("Decoding system prompt!\n");
         return false;
     }
-    if(!decode_str(
-            s_slots[slot_index]->mt_p->sys_prompt_mid_delim,
-            MT_TOK_TYPE_DELIM,
-            *s_slots[slot_index],
-            true))
+    if(!decode_str(s.mt_p->sys_prompt_mid_delim, MT_TOK_TYPE_DELIM, s, true))
     {
         MT_LOG_ERR("Decoding system prompt middle delimiter!\n");
         return false;
     }
-    if(!decode_str(
-            prompt,
-            MT_TOK_TYPE_PROMPT,
-            *s_slots[slot_index],
-            true))
+    if(!decode_str(prompt, MT_TOK_TYPE_PROMPT, s, true))
     {
         MT_LOG_ERR("Decoding prompt!\n");
         return false;
@@ -472,7 +455,7 @@ static bool decode_initial_query(
 
     if(!skip_sys_prompt_end_delim)
     {
-        if(!decode_sys_prompt_end_delim(*s_slots[slot_index]))
+        if(!decode_sys_prompt_end_delim(s))
         {
             return false; // (called function logs on error)
         }
@@ -1106,7 +1089,9 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_query(
         assert(!follow_up_decode_prompt_and_sys_prompt_end_delim);
 
         if(!decode_initial_query(
-                prompt, slot_index, skip_sys_prompt_end_delim_and_inference))
+                prompt,
+                *s_slots[slot_index],
+                skip_sys_prompt_end_delim_and_inference))
         {
             return false; // (called function logs on error)
         }
