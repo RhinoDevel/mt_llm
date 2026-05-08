@@ -1303,7 +1303,7 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_rerank(
 
     std::vector<std::vector<llama_token>> inputs;
     llama_batch batch;
-    int s = 0;
+    int sb = 0;
     std::vector<float> scores;
 
     // *************************************************************************
@@ -1352,40 +1352,40 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_rerank(
         return nullptr;
     }
 
-    if(s_slots[slot_index]->mt_p->emb_or_rerank != 2) // Hard-coded
+    mt_llm_s const &s = *s_slots[slot_index];
+
+    if(s.mt_p->emb_or_rerank != 2) // Hard-coded
     {
         MT_LOG_ERR("NOT configured for reranking usage!\n");
         return nullptr;
     }
 
-    assert(s_slots[slot_index]->mt_p != nullptr);
-    assert(s_slots[slot_index]->model != nullptr);
-    assert(s_slots[slot_index]->ctx != nullptr);
-    //assert(s_slots[slot_index]->sampler != nullptr); // Does not matter.
+    assert(s.mt_p != nullptr);
+    assert(s.model != nullptr);
+    assert(s.ctx != nullptr);
+    //assert(s.sampler != nullptr); // Does not matter.
 
     // No support for other pooling types, here:
     assert( // See mt_llm_ctx_create().
-        llama_pooling_type(
-            s_slots[slot_index]->ctx) == LLAMA_POOLING_TYPE_RANK);
+        llama_pooling_type(s.ctx) == LLAMA_POOLING_TYPE_RANK);
 
-    if(llama_model_chat_template(s_slots[slot_index]->model->model, "rerank")
-        != nullptr)
+    if(llama_model_chat_template(s.model->model, "rerank") != nullptr)
     {
         // See llama.cpp's embedding.cpp example for implementation.
         MT_LOG_ERR("Reranking model has a chat template, this is currently not supported!\n");
         return nullptr;
     }
 
-    if(llama_model_n_cls_out(s_slots[slot_index]->model->model) != 1)
+    if(llama_model_n_cls_out(s.model->model) != 1)
     {
         // See llama.cpp's embedding.cpp example for implementation.
         MT_LOG_ERR("Reranking model has more than one classifier output, this is currently not supported!\n");
         return nullptr;
     }
 
-    uint32_t const n_ctx = llama_n_ctx(s_slots[slot_index]->ctx);
+    uint32_t const n_ctx = llama_n_ctx(s.ctx);
 
-    uint32_t const n_batch = llama_n_batch(s_slots[slot_index]->ctx);
+    uint32_t const n_batch = llama_n_batch(s.ctx);
 
     // *************************************************************************
     // *** Get token representation of given query and documents:            ***
@@ -1393,8 +1393,7 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_rerank(
 
     //MT_LOG("Query: \"%s\", document count: %d\n", query, doc_count);
 
-    const llama_vocab * const vocab = llama_model_get_vocab(
-        s_slots[slot_index]->model->model);
+    const llama_vocab * const vocab = llama_model_get_vocab(s.model->model);
 
     // Get add-SEP and add-EOS token, if there are any:
     std::string const add_sep_tok_str =
@@ -1430,7 +1429,7 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_rerank(
         prompt += documents[i]; // Implicit conversion.
 
         inp = common_tokenize(
-            s_slots[slot_index]->ctx,
+            s.ctx,
             prompt,
             true, // Add specials.
             true); // Parse specials.
@@ -1455,7 +1454,7 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_rerank(
             MT_LOG(
                 "%6d => \"%s\"\n",
                 inp[j],
-                common_token_to_piece(s_slots[slot_index]->ctx, inp[j]).c_str());
+                common_token_to_piece(s.ctx, inp[j]).c_str());
         }
 #endif //NDEBUG
 
@@ -1484,13 +1483,13 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_rerank(
     int const n_seq_max = static_cast<int>(llama_max_parallel_sequences());
 
     scores.clear(); // Necessary?
-    s = 0; // Number of prompts in current batch.
+    sb = 0; // Number of prompts in current batch.
     for(int k = 0; k < static_cast<int>(inputs.size()); ++k)
     {
         std::vector<llama_token>& inp = inputs[k];
         uint64_t const n_toks = static_cast<uint64_t>(inp.size());
 
-        if(n_batch < batch.n_tokens + n_toks || n_seq_max <= s)
+        if(n_batch < batch.n_tokens + n_toks || n_seq_max <= sb)
         {
             // No more capacity left, decode & add remember current scores:
 
@@ -1511,17 +1510,17 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_rerank(
                 scores.push_back(cur_scores[i]);
             }
 
-            s = 0;
+            sb = 0;
             common_batch_clear(batch);
         }
             
         // Add to batch:
         for(int i = 0; i < static_cast<int>(inp.size()); ++i)
         {
-            common_batch_add(batch, inp[i], i, { s }, true);
+            common_batch_add(batch, inp[i], i, { sb }, true);
         }
 
-        s += 1;
+        sb += 1;
     }
 
     std::vector<float> const final_scores = rerank_batch_decode(
