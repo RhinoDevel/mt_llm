@@ -951,17 +951,17 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_state_restore(
         MT_LOG_ERR("Invalid slot index given!\n");
         return false;
     }
-
     if(s_slots[slot_index] == nullptr)
     {
         MT_LOG_ERR("Not intialized!\n");
         return false;
     }
 
-    assert(s_slots[slot_index]->ctx != nullptr);
+    mt_llm_s &s = *s_slots[slot_index];
+
+    assert(s.ctx != nullptr);
     
-    size_t const read = llama_state_set_data(
-        s_slots[slot_index]->ctx, state->state, state->size);
+    size_t const read = llama_state_set_data(s.ctx, state->state, state->size);
 
     if(read != state->size)
     {
@@ -969,8 +969,8 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_state_restore(
         return false;
     }
 
-    s_slots[slot_index]->last_tok_type = state->last_tok_type;
-    s_slots[slot_index]->tok_cnt = state->tok_cnt;
+    s.last_tok_type = state->last_tok_type;
+    s.tok_cnt = state->tok_cnt;
     MT_LOG("Successfully restored %zu bytes from state to LLM memory (tok. count: %d, last tok. type: %d, slot index: %d).\n", state->size, state->tok_cnt, state->last_tok_type, slot_index);
     return true;
 }
