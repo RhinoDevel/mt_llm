@@ -1139,32 +1139,32 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_create_embeddings(
         return nullptr;
     }
 
-    if(s_slots[slot_index]->mt_p->emb_or_rerank != 1) // Hard-coded
+    mt_llm_s const &s = *s_slots[slot_index];
+
+    if(s.mt_p->emb_or_rerank != 1) // Hard-coded
     {
         MT_LOG_ERR("NOT configured for embeddings creation!\n");
         return nullptr;
     }
 
-    assert(s_slots[slot_index]->mt_p != nullptr);
-    assert(s_slots[slot_index]->model != nullptr);
-    assert(s_slots[slot_index]->ctx != nullptr);
-    //assert(s_slots[slot_index]->sampler != nullptr); // Does not matter.
+    assert(s.mt_p != nullptr);
+    assert(s.model != nullptr);
+    assert(s.ctx != nullptr);
+    //assert(s.sampler != nullptr); // Does not matter.
 
     // No support for other pooling types (e.g. for a reranking model), here:
     assert( // See mt_llm_ctx_create().
-        llama_pooling_type(s_slots[slot_index]->ctx) == LLAMA_POOLING_TYPE_CLS
-            || llama_pooling_type(s_slots[slot_index]->ctx)
-                == LLAMA_POOLING_TYPE_MEAN
-            || llama_pooling_type(s_slots[slot_index]->ctx)
-                == LLAMA_POOLING_TYPE_LAST);
+        llama_pooling_type(s.ctx) == LLAMA_POOLING_TYPE_CLS
+            || llama_pooling_type(s.ctx) == LLAMA_POOLING_TYPE_MEAN
+            || llama_pooling_type(s.ctx) == LLAMA_POOLING_TYPE_LAST);
 
-    uint32_t const n_ctx = llama_n_ctx(s_slots[slot_index]->ctx);
+    uint32_t const n_ctx = llama_n_ctx(s.ctx);
 
     // *************************************************************************
     // *** Clear the memory (K/V cache):                                     ***
     // *************************************************************************
 
-    clear_llama_memory(s_slots[slot_index]->ctx);
+    clear_llama_memory(s.ctx);
 
     // *************************************************************************
     // *** Get token representation of given prompt/text:                    ***
@@ -1173,7 +1173,7 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_create_embeddings(
     //MT_LOG("Prompt: \"%s\"\n", prompt);
 
     inp = common_tokenize(
-            s_slots[slot_index]->ctx,
+            s.ctx,
             prompt, // <- Implicit conversion.
             true, // Add specials.
             true); // Parse specials.
@@ -1183,8 +1183,7 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_create_embeddings(
         return nullptr;
     }
 
-    const llama_vocab * const vocab = llama_model_get_vocab(
-        s_slots[slot_index]->model->model);
+    const llama_vocab * const vocab = llama_model_get_vocab(s.model->model);
 
     if(inp.back() != llama_vocab_sep(vocab)
         && inp.back() != llama_vocab_eos(vocab))
@@ -1203,7 +1202,7 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_create_embeddings(
         MT_LOG(
             "%6d => \"%s\"\n",
             inp[i],
-            common_token_to_piece(s_slots[slot_index]->ctx, inp[i]).c_str());
+            common_token_to_piece(s.ctx, inp[i]).c_str());
     }
 #endif //NDEBUG
 
@@ -1244,7 +1243,7 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_create_embeddings(
             true);
     }
 
-    int32_t const decode_result = llama_decode(s_slots[slot_index]->ctx, batch);
+    int32_t const decode_result = llama_decode(s.ctx, batch);
 
     llama_batch_free(batch);
 
@@ -1260,7 +1259,7 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_create_embeddings(
     // *************************************************************************
 
     float const * const embd = llama_get_embeddings_seq(
-        s_slots[slot_index]->ctx, 0); // (0 is the sole sequence ID used)
+        s.ctx, 0); // (0 is the sole sequence ID used)
 
     if(embd == nullptr)
     {
@@ -1272,7 +1271,7 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_create_embeddings(
     // *** Create (Euclidean) normalized copy of the embedding vector:       ***
     // *************************************************************************
 
-    int const n_embd = llama_model_n_embd(s_slots[slot_index]->model->model);
+    int const n_embd = llama_model_n_embd(s.model->model);
 
     assert(0 < n_embd);
 
