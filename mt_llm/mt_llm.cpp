@@ -192,7 +192,6 @@ static bool callback_handler(
         MT_LOG("Warning: Retrieved token with ID %d having empty string representation.", tok);
         return false; // <=> No interruption.
     }
-
     return s.mt_p->callback(
         static_cast<int>(tok),
         piece.c_str(),
@@ -249,10 +248,7 @@ static bool decode_tokens(
  *    decode failed (e.g. not all tokens could be decoded, because of full
  *    context).
  */
-static bool decode_str(
-    char const * const str,
-    int const tok_type,
-    mt_llm_s& s)
+static bool decode_str(char const * const str, int const tok_type, mt_llm_s& s)
 {
     bool irq_dummy; // IRQ is ignored, here.
     std::vector<llama_token> tokens;
@@ -278,12 +274,7 @@ static bool decode_str(
 //    }
 //#endif //NDEBUG
 
-    return decode_tokens(
-        tokens,
-        tok_type,
-        s,
-        std::vector<float>(),
-        irq_dummy);
+    return decode_tokens(tokens, tok_type, s, std::vector<float>(), irq_dummy);
 }
 
 static bool decode_some_prompt_end_delim_with_thinking(
@@ -329,16 +320,14 @@ static bool decode_some_prompt_end_delim_with_thinking(
         string_remove_suffix(str_some_prompt_end_delim, str_think_beg_delim);
     }
 
-    if(!decode_str(
-            str_some_prompt_end_delim.c_str(), MT_TOK_TYPE_DELIM, s))
+    if(!decode_str(str_some_prompt_end_delim.c_str(), MT_TOK_TYPE_DELIM, s))
     {
         MT_LOG_ERR("Decoding some prompt end delimiter!\n");
         return false;
     }
     if(decode_think_beg_delim)
     {
-        if(!decode_str(
-                s.mt_p->think_beg_delim, MT_TOK_TYPE_THINK_BEGIN, s))
+        if(!decode_str(s.mt_p->think_beg_delim, MT_TOK_TYPE_THINK_BEGIN, s))
         {
             MT_LOG_ERR("Decoding thinking prompt begin delimiter after some prompt!\n");
             return false;
@@ -415,10 +404,7 @@ static bool decode_sys_prompt_end_delim(mt_llm_s& s)
         // Simple case, where there are no thinking/reasoning delimiters.
         assert(s.mt_p->think_end_delim[0] == '\0');
 
-        if(!decode_str(
-            s.mt_p->sys_prompt_end_delim,
-            MT_TOK_TYPE_DELIM,
-            s))
+        if(!decode_str(s.mt_p->sys_prompt_end_delim, MT_TOK_TYPE_DELIM, s))
         {
             MT_LOG_ERR("Decoding system prompt end delimiter (1)!\n");
             return false;
