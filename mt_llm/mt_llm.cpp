@@ -994,7 +994,7 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_decode_response(
         return false;
     }
 
-    mt_llm_s const &s = *s_slots[slot_index];
+    mt_llm_s& s = *s_slots[slot_index];
 
     if(s.mt_p->emb_or_rerank != 0)
     {
@@ -1010,7 +1010,7 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_decode_response(
             response,
             // Not really sampled here..
             MT_TOK_TYPE_SAMPLED_NON_EOG_NON_CONTROL,
-            *s_slots[slot_index],
+            s,
             true))
     {
         MT_LOG_ERR("Decoding (given) response failed!\n");
@@ -1018,9 +1018,9 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_decode_response(
     }
 
     if(!decode_str(
-            get_response_tok_eog_str(*s_slots[slot_index]).c_str(),
+            get_response_tok_eog_str(s).c_str(),
             MT_TOK_TYPE_SAMPLED_EOG, // Not really sampled here..
-            *s_slots[slot_index],
+            s,
             true))
     {
         MT_LOG_ERR("Decoding (given) response's EOG token failed!\n");
@@ -1067,7 +1067,7 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_query(
 
         if(!decode_initial_query(
                 prompt,
-                *s_slots[slot_index],
+                s,
                 skip_sys_prompt_end_delim_and_inference))
         {
             return false; // (called function logs on error)
@@ -1080,15 +1080,14 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_query(
 
         if(follow_up_decode_prompt_and_sys_prompt_end_delim)
         {
-            if(!decode_prompt_and_sys_prompt_end_delim(
-                    prompt, *s_slots[slot_index]))
+            if(!decode_prompt_and_sys_prompt_end_delim(prompt, s))
             {
                 return false; // (called function logs on error)
             }
         }
         else
         {
-            if(!decode_follow_up_query(prompt, *s_slots[slot_index]))
+            if(!decode_follow_up_query(prompt, s))
             {
                 return false; // (called function logs on error)
             }
@@ -1097,7 +1096,7 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_query(
 
     if(!skip_sys_prompt_end_delim_and_inference)
     {
-        if(!inference(*s_slots[slot_index]))
+        if(!inference(s))
         {
             return false; // (called function logs on error)
         }
@@ -1493,8 +1492,7 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_rerank(
         {
             // No more capacity left, decode & add remember current scores:
 
-            std::vector<float> const cur_scores = rerank_batch_decode(
-                batch, *s_slots[slot_index]);
+            std::vector<float> const cur_scores = rerank_batch_decode(batch, s);
 
             if(cur_scores.empty())
             {
@@ -1523,8 +1521,7 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_rerank(
         sb += 1;
     }
 
-    std::vector<float> const final_scores = rerank_batch_decode(
-        batch, *s_slots[slot_index]);
+    std::vector<float> const final_scores = rerank_batch_decode(batch, s);
 
     llama_batch_free(batch);
 
