@@ -993,15 +993,18 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_decode_response(
         MT_LOG_ERR("Not intialized!\n");
         return false;
     }
-    if(s_slots[slot_index]->mt_p->emb_or_rerank != 0)
+
+    mt_llm_s const &s = *s_slots[slot_index];
+
+    if(s.mt_p->emb_or_rerank != 0)
     {
         MT_LOG_ERR("Configured for embeddings creation or reranking usage!\n");
         return false;
     }
-    assert(s_slots[slot_index]->mt_p != nullptr);
-    assert(s_slots[slot_index]->model != nullptr);
-    assert(s_slots[slot_index]->ctx != nullptr);
-    assert(s_slots[slot_index]->sampler != nullptr); // Alth. not needed, here..
+    assert(s.mt_p != nullptr);
+    assert(s.model != nullptr);
+    assert(s.ctx != nullptr);
+    assert(s.sampler != nullptr); // Alth. not needed, here..
 
     if(!decode_str(
             response,
