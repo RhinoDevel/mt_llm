@@ -889,16 +889,17 @@ MT_EXPORT_LLM_API struct mt_llm_state * __stdcall mt_llm_state_create(
         MT_LOG_ERR("Invalid slot index given!\n");
         return nullptr;
     }
-
     if(s_slots[slot_index] == nullptr)
     {
         MT_LOG_ERR("Not intialized!\n");
         return nullptr;
     }
 
-    assert(s_slots[slot_index]->ctx != nullptr);
+    mt_llm_s const &s = *s_slots[slot_index];
 
-    size_t const state_size = llama_state_get_size(s_slots[slot_index]->ctx);
+    assert(s.ctx != nullptr);
+
+    size_t const state_size = llama_state_get_size(s.ctx);
 
     MT_LOG("Serialized state size would be: %zu bytes\n", state_size);
 
@@ -919,7 +920,7 @@ MT_EXPORT_LLM_API struct mt_llm_state * __stdcall mt_llm_state_create(
     }
 
     size_t const written = llama_state_get_data(
-        s_slots[slot_index]->ctx, state->state, state_size);
+        s.ctx, state->state, state_size);
 
     if(written != state_size)
     {
@@ -932,8 +933,8 @@ MT_EXPORT_LLM_API struct mt_llm_state * __stdcall mt_llm_state_create(
     }
 
     state->size = state_size;
-    state->last_tok_type = s_slots[slot_index]->last_tok_type;
-    state->tok_cnt = s_slots[slot_index]->tok_cnt;
+    state->last_tok_type = s.last_tok_type;
+    state->tok_cnt = s.tok_cnt;
     MT_LOG("Successfully created %zu state bytes from LLM memory (tok. count: %d, last tok. type: %d, slot index: %d).\n", state->size, state->tok_cnt, state->last_tok_type, slot_index);
     return state; // Caller takes ownership!
 }
