@@ -579,13 +579,9 @@ static bool decode_follow_up_query(
 /** Return the EOG token's string representation (the EOG token that is used by
  *  the model after a response).
  */
-static std::string get_response_tok_eog_str(int const slot_index)
+static std::string get_response_tok_eog_str(mt_llm_s const & s)
 {
-    assert(slot_index == 0 || slot_index == 1);
-    assert(s_slots[slot_index] != nullptr);
-
-    llama_vocab const * const vocab = llama_model_get_vocab(
-        s_slots[slot_index]->model->model);
+    llama_vocab const * const vocab = llama_model_get_vocab(s.model->model);
 
     // TODO: On Android, for the following models, this should be the
     //       other way around, as it seems (try EOS first, then EOT):
@@ -601,7 +597,7 @@ static std::string get_response_tok_eog_str(int const slot_index)
         ? llama_vocab_eos(vocab)
         : tok_eot;
 
-    return mt_llm_ctx_get_piece_from(*s_slots[slot_index]->ctx, tok_eog);
+    return mt_llm_ctx_get_piece_from(*s.ctx, tok_eog);
 }
 
 /**
@@ -618,7 +614,7 @@ static void decode_irq_tokens(int const slot_index)
     if(!decode_str(
             // Overdone token -> string -> token pipeline, but to be able to use
             // decode_str() function, only:
-            get_response_tok_eog_str(slot_index).c_str(),
+            get_response_tok_eog_str(*s_slots[slot_index]).c_str(),
             MT_TOK_TYPE_IRQ,
             slot_index,
             true))
@@ -1082,7 +1078,7 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_decode_response(
     }
 
     if(!decode_str(
-            get_response_tok_eog_str(slot_index).c_str(),
+            get_response_tok_eog_str(*s_slots[slot_index]).c_str(),
             MT_TOK_TYPE_SAMPLED_EOG, // Not really sampled here..
             slot_index,
             true))
