@@ -26,7 +26,6 @@ MT_EXPORT_LLM_API void __stdcall mt_llm_free(void * const ptr);
 
 /**
  * - Slot index may be 0 or 1.
- * 
  * - Returns -1, if not initialized.
  * - Returns -2, if NULL given.
  * - Returns -3, if given slot index is invalid.
@@ -37,11 +36,9 @@ MT_EXPORT_LLM_API int __stdcall mt_llm_get_token_count(
 
 /**
  * - Slot index may be 0 or 1.
- * 
  * - Caller takes ownership of return value.
  *   mt_llm_state.state and the mt_llm_state object itself can be freed via
  *   mt_llm_free() each.
- * 
  * - Returns NULL and does nothing, if invalid slot index given.
  * - Returns NULL and does nothing, if not initialized.
  * - Returns NULL, if dumping to memory failed (e.g. out of space).
@@ -51,12 +48,9 @@ MT_EXPORT_LLM_API struct mt_llm_state * __stdcall mt_llm_state_create(
 
 /**
  * - Slot index may be 0 or 1.
- * 
  * - Returns false and does nothing, if invalid slot index given.
  * - Returns false and does nothing, if not initialized.
- * 
  * - Assumes non-NULL given and object to hold valid values.
- * 
  * - If false is returned because of failed read attempt, the state of the
  *   context is unknown..
  */
@@ -69,7 +63,6 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_state_restore(
  *  - Makes sense directly after a prompt_template.prompt_end_delim (see
  *    mt_lm_model.cpp), only (which is not checked, here).
  *  - Appends the EOG token automatically.
- * 
  *  - Slot index may be 0 or 1.
  *  - Returns false and does nothing, if not initialized or invalid slot index
  *    or configured for embeddings creation.
@@ -79,9 +72,8 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_decode_response(
 
 /**
  * - Slot index may be 0 or 1.
- * 
  * - Returns false and does nothing, if not initialized or invalid slot index or
- *   configured for embeddings creation.
+ *   configured for embeddings creation or reranking.
  */
 MT_EXPORT_LLM_API bool __stdcall mt_llm_query(
     char const * const prompt,
@@ -91,15 +83,11 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_query(
 
 /**
  * - Slot index may be 0 or 1.
- * 
  * - Caller takes ownership of the returned array, must be freed via
  *   mt_llm_free().
- * 
  * - Returns NULL and does nothing, if not initialized or invalid slot index
  *   or NOT configured for embeddings creation.
- * 
  * - Clears the memory (K/V) before creation of embeddings.
- * 
  * - The returned embedding vector is (Euclidean) normalized (pooling type used
  *   is "mean").
  */
@@ -108,17 +96,12 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_create_embeddings(
 
 /**
  * - Slot index may be 0 or 1.
- *
  * - Caller takes ownership of the returned array, must be freed via
  *   mt_llm_free().
- *
  * - Returns NULL and does nothing, if not initialized or invalid slot index
  *   or NOT configured for reranker "mode" or some other error happened.
- *
  * - Clears the memory (K/V) before creation of reranking result.
- *
  * - The returned numbers are NOT normalized, yet.
- * 
  * - The returned numbers are of the same count as the given documents.
  */
 MT_EXPORT_LLM_API float* __stdcall mt_llm_rerank(
@@ -131,7 +114,6 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_rerank(
  *  prompt.
  *
  * - Slot index may be 0 or 1.
- * 
  * - Does nothing, if singleton or slot is not initialized.
  */
 MT_EXPORT_LLM_API void __stdcall mt_llm_reset(
@@ -139,16 +121,13 @@ MT_EXPORT_LLM_API void __stdcall mt_llm_reset(
 
 /**
  * - Slot index may be 0 or 1.
- * 
  * - Does no harm, if not initialized.
- * 
  * - At the end, call this once for each slot used.
  */
 MT_EXPORT_LLM_API void __stdcall mt_llm_deinit(int const slot_index);
 
 /**
  * - Slot index may be 0 or 1.
- * 
  * - De-initializes first, if already initialized.
  */
 MT_EXPORT_LLM_API bool __stdcall mt_llm_reinit(
