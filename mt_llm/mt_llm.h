@@ -57,15 +57,45 @@ MT_EXPORT_LLM_API struct mt_llm_state * __stdcall mt_llm_state_create(
 MT_EXPORT_LLM_API bool __stdcall mt_llm_state_restore(
     struct mt_llm_state const * const state, int const slot_index);
 
+/** Add ("decode") given text as system prompt to the context.
+ *
+ *  - Slot index may be 0 or 1.
+ *  - Automatically inserts prompt_template.sys_prompt_beg_delim and
+ *    .sys_prompt_mid_delim around the given system prompt, too.
+ *  - Returns false and does nothing, if not initialized or invalid slot index
+ *    or configured for embeddings creation or reranking or configured to use a
+ *    model in thinking/reasoning mode or token count of context is not zero.
+ */
+MT_EXPORT_LLM_API bool __stdcall mt_llm_decode_sys_prompt(
+    char const * const sys_prompt, int const slot_index);
+
+/** Add ("decode") given text to the context, as if it were a query/request by
+ *  the user.
+ *
+ *  - Makes sense directly after a prompt_template.sys_prompt_mid_delim or
+ *    .prompt_beg_delim (see mt_lm_model.cpp), only (which is not checked,
+ *    here).
+ *  - Slot index may be 0 or 1.
+ *  - Automatically inserts prompt_template.sys_prompt_end_delim or
+ *    .prompt_end_delim (depending on bool input parameter) after request, too.
+ *  - Returns false and does nothing, if not initialized or invalid slot index
+ *    or configured for embeddings creation or reranking or configured to use a
+ *    model in thinking/reasoning mode.
+ */
+MT_EXPORT_LLM_API bool __stdcall mt_llm_decode_request(
+    char const * const request, int const slot_index, bool const is_first);
+
 /** Add ("decode") given text to the context, as if it were a response generated
  *  by the model.
  * 
  *  - Makes sense directly after a prompt_template.prompt_end_delim (see
  *    mt_lm_model.cpp), only (which is not checked, here).
- *  - Appends the EOG token automatically.
+ *  - Automatically inserts EOG token and prompt_template.prompt_beg_delim after
+ *    response, too.
  *  - Slot index may be 0 or 1.
  *  - Returns false and does nothing, if not initialized or invalid slot index
- *    or configured for embeddings creation.
+ *    or configured for embeddings creation or reranking or configured to use a
+ *    model in thinking/reasoning mode.
  */
 MT_EXPORT_LLM_API bool __stdcall mt_llm_decode_response(
     char const * const response, int const slot_index);

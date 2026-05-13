@@ -397,8 +397,6 @@ static bool decode_some_prompt_end_delim_with_thinking(
  */
 static bool decode_sys_prompt_end_delim(mt_llm_s& s)
 {
-    assert(s.mt_p->sys_prompt[0] != '\0');
-
     if(s.mt_p->think_beg_delim[0] == '\0')
     {
         // Simple case, where there are no thinking/reasoning delimiters.
@@ -406,7 +404,7 @@ static bool decode_sys_prompt_end_delim(mt_llm_s& s)
 
         if(!decode_str(s.mt_p->sys_prompt_end_delim, MT_TOK_TYPE_DELIM, s))
         {
-            MT_LOG_ERR("Decoding system prompt end delimiter (1)!\n");
+            MT_LOG_ERR("Decoding system prompt end delimiter!\n");
             return false;
         }
         return true;
@@ -949,6 +947,85 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_state_restore(
     return true;
 }
 
+MT_EXPORT_LLM_API bool __stdcall mt_llm_decode_sys_prompt(
+    char const * const sys_prompt, int const slot_index)
+{
+    if(sys_prompt == nullptr)
+    {
+        MT_LOG_ERR("No system prompt given (is NULL), doing nothing.\n");
+        return false;
+    }
+    if(slot_index != 0 && slot_index != 1)
+    {
+        MT_LOG_ERR("Unsupported slot index given, doing nothing.\n");
+        return false;
+    }
+    if(s_slots[slot_index] == nullptr)
+    {
+        MT_LOG_ERR("Not intialized!\n");
+        return false;
+    }
+
+    mt_llm_s& s = *s_slots[slot_index];
+
+    if(s.mt_p->emb_or_rerank != 0)
+    {
+        MT_LOG_ERR("Configured for embeddings creation or reranking usage!\n");
+        return false;
+    }
+    if(s.mt_p->enable_thinking)
+    {
+        MT_LOG_ERR("Thinking is enabled!\n");
+        return false;
+    }
+    if(s.tok_cnt != 0)
+    {
+        MT_LOG_ERR("Token count is not zero!\n");
+        return false;
+    }
+    assert(s.mt_p != nullptr);
+    assert(s.model != nullptr);
+    assert(s.ctx != nullptr);
+    assert(s.sampler != nullptr); // Alth. not needed, here..
+
+    // s_qwen3_think (NOT supported, here):
+    // ------------------------------------
+    // .sys_prompt_beg_delim = "<|im_start|>" "system\n"
+    // .sys_prompt_mid_delim = "<|im_end|>\n" "<|im_start|>" "user\n"
+    // .sys_prompt_end_delim = "<|im_end|>\n" "<|im_start|>" "assistant" "\n"
+    // .prompt_beg_delim = "<|im_start|>" "user\n"
+    // .prompt_end_delim = "<|im_end|>\n" "<|im_start|>" "assistant" "\n"
+    // .think_beg_delim = "<think>"
+    // .think_end_delim = "</think>"
+    //
+    // s_qwen3 (supported, here):
+    // --------------------------
+    // .sys_prompt_beg_delim = "<|im_start|>" "system\n"
+    // .sys_prompt_mid_delim = "<|im_end|>\n" "<|im_start|>" "user\n"
+    // .sys_prompt_end_delim = "<|im_end|>\n" "<|im_start|>" "assistant" "\n" "<think>" "\n" "\n" "</think>" "\n" "\n"
+    // .prompt_beg_delim = "<|im_start|>" "user\n"
+    // .prompt_end_delim = "<|im_end|>\n" "<|im_start|>" "assistant" "\n" "<think>" "\n" "\n" "</think>" "\n" "\n"
+    // .think_beg_delim = "<think>"
+    // .think_end_delim = "</think>"
+
+    if(!decode_str(s.mt_p->sys_prompt_beg_delim, MT_TOK_TYPE_DELIM, s))
+    {
+        MT_LOG_ERR("Decoding system prompt begin delimiter!\n");
+        return false;
+    }
+    if(!decode_str(sys_prompt, MT_TOK_TYPE_SYS_PROMPT, s))
+    {
+        MT_LOG_ERR("Decoding (given) system prompt!\n");
+        return false;
+    }
+    if(!decode_str(s.mt_p->sys_prompt_mid_delim, MT_TOK_TYPE_DELIM, s))
+    {
+        MT_LOG_ERR("Decoding system prompt middle delimiter!\n");
+        return false;
+    }
+    return true;
+}
+
 MT_EXPORT_LLM_API bool __stdcall mt_llm_decode_response(
     char const * const response, int const slot_index)
 {
@@ -975,10 +1052,35 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_decode_response(
         MT_LOG_ERR("Configured for embeddings creation or reranking usage!\n");
         return false;
     }
+    if(s.mt_p->enable_thinking)
+    {
+        MT_LOG_ERR("Thinking is enabled!\n");
+        return false;
+    }
     assert(s.mt_p != nullptr);
     assert(s.model != nullptr);
     assert(s.ctx != nullptr);
     assert(s.sampler != nullptr); // Alth. not needed, here..
+    
+    // s_qwen3_think (NOT supported, here):
+    // ------------------------------------
+    // .sys_prompt_beg_delim = "<|im_start|>" "system\n"
+    // .sys_prompt_mid_delim = "<|im_end|>\n" "<|im_start|>" "user\n"
+    // .sys_prompt_end_delim = "<|im_end|>\n" "<|im_start|>" "assistant" "\n"
+    // .prompt_beg_delim = "<|im_start|>" "user\n"
+    // .prompt_end_delim = "<|im_end|>\n" "<|im_start|>" "assistant" "\n"
+    // .think_beg_delim = "<think>"
+    // .think_end_delim = "</think>"
+    //
+    // s_qwen3 (supported, here):
+    // --------------------------
+    // .sys_prompt_beg_delim = "<|im_start|>" "system\n"
+    // .sys_prompt_mid_delim = "<|im_end|>\n" "<|im_start|>" "user\n"
+    // .sys_prompt_end_delim = "<|im_end|>\n" "<|im_start|>" "assistant" "\n" "<think>" "\n" "\n" "</think>" "\n" "\n"
+    // .prompt_beg_delim = "<|im_start|>" "user\n"
+    // .prompt_end_delim = "<|im_end|>\n" "<|im_start|>" "assistant" "\n" "<think>" "\n" "\n" "</think>" "\n" "\n"
+    // .think_beg_delim = "<think>"
+    // .think_end_delim = "</think>"
 
     if(!decode_str(
             response,
@@ -997,6 +1099,107 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_decode_response(
     {
         MT_LOG_ERR("Decoding (given) response's EOG token failed!\n");
         return false;
+    }
+
+    if(!decode_str(s.mt_p->prompt_beg_delim, MT_TOK_TYPE_DELIM, s))
+    {
+        MT_LOG_ERR("Decoding prompt begin delimiter!\n");
+        return false;
+    }
+
+    return true;
+}
+
+MT_EXPORT_LLM_API bool __stdcall mt_llm_decode_request(
+    char const * const request, int const slot_index, bool const is_first)
+{
+    if(request == nullptr)
+    {
+        MT_LOG_ERR("No request given (is NULL), doing nothing.\n");
+        return false;
+    }
+    if(slot_index != 0 && slot_index != 1)
+    {
+        MT_LOG_ERR("Unsupported slot index given, doing nothing.\n");
+        return false;
+    }
+    if(s_slots[slot_index] == nullptr)
+    {
+        MT_LOG_ERR("Not intialized!\n");
+        return false;
+    }
+
+    mt_llm_s& s = *s_slots[slot_index];
+
+    if(s.mt_p->emb_or_rerank != 0)
+    {
+        MT_LOG_ERR("Configured for embeddings creation or reranking usage!\n");
+        return false;
+    }
+    if(s.mt_p->enable_thinking)
+    {
+        MT_LOG_ERR("Thinking is enabled!\n");
+        return false;
+    }
+    assert(s.mt_p != nullptr);
+    assert(s.model != nullptr);
+    assert(s.ctx != nullptr);
+    assert(s.sampler != nullptr); // Alth. not needed, here..
+
+    // s_qwen3_think (NOT supported, here):
+    // ------------------------------------
+    // .sys_prompt_beg_delim = "<|im_start|>" "system\n"
+    // .sys_prompt_mid_delim = "<|im_end|>\n" "<|im_start|>" "user\n"
+    // .sys_prompt_end_delim = "<|im_end|>\n" "<|im_start|>" "assistant" "\n"
+    // .prompt_beg_delim = "<|im_start|>" "user\n"
+    // .prompt_end_delim = "<|im_end|>\n" "<|im_start|>" "assistant" "\n"
+    // .think_beg_delim = "<think>"
+    // .think_end_delim = "</think>"
+    //
+    // s_qwen3 (supported, here):
+    // --------------------------
+    // .sys_prompt_beg_delim = "<|im_start|>" "system\n"
+    // .sys_prompt_mid_delim = "<|im_end|>\n" "<|im_start|>" "user\n"
+    // .sys_prompt_end_delim = "<|im_end|>\n" "<|im_start|>" "assistant" "\n" "<think>" "\n" "\n" "</think>" "\n" "\n"
+    // .prompt_beg_delim = "<|im_start|>" "user\n"
+    // .prompt_end_delim = "<|im_end|>\n" "<|im_start|>" "assistant" "\n" "<think>" "\n" "\n" "</think>" "\n" "\n"
+    // .think_beg_delim = "<think>"
+    // .think_end_delim = "</think>"
+
+    if(!decode_str(request, MT_TOK_TYPE_PROMPT, s))
+    {
+        MT_LOG_ERR("Decoding (given) request failed!\n");
+        return false;
+    }
+
+    if(is_first)
+    {
+        if(!decode_sys_prompt_end_delim(s))
+        {
+            return false; // (called function logged)
+        }
+    }
+    else
+    {
+        if(s.mt_p->think_beg_delim[0] == '\0')
+        {
+            // Simple case, where there are no thinking/reasoning delimiters.
+            assert(s.mt_p->think_end_delim[0] == '\0');
+
+            if(!decode_str(s.mt_p->prompt_end_delim, MT_TOK_TYPE_DELIM, s))
+            {
+                MT_LOG_ERR("Decoding prompt end delimiter!\n");
+                return false;
+            }
+        }
+        else
+        {
+            if(!decode_some_prompt_end_delim_with_thinking(
+                    s.mt_p->prompt_end_delim, s))
+            {
+                return false; // (called function logged)
+            }
+        }
     }
 
     return true;
