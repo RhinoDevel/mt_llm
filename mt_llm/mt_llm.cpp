@@ -1174,35 +1174,31 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_decode_request(
 
     if(is_first)
     {
-        if(!decode_sys_prompt_end_delim(s))
-        {
-            return false; // (called function logged)
-        }
+        // First user request/query.
+        return decode_sys_prompt_end_delim(s); // (logs on error)
     }
-    else
+    
+    // This is a follow-up user request/query.
+    
+    if(s.mt_p->think_beg_delim[0] == '\0')
     {
-        if(s.mt_p->think_beg_delim[0] == '\0')
-        {
-            // Simple case, where there are no thinking/reasoning delimiters.
-            assert(s.mt_p->think_end_delim[0] == '\0');
+        // Simple case, where there are no thinking/reasoning delimiters.
+        assert(s.mt_p->think_end_delim[0] == '\0');
 
-            if(!decode_str(s.mt_p->prompt_end_delim, MT_TOK_TYPE_DELIM, s))
-            {
-                MT_LOG_ERR("Decoding prompt end delimiter!\n");
-                return false;
-            }
-        }
-        else
+        if(!decode_str(s.mt_p->prompt_end_delim, MT_TOK_TYPE_DELIM, s))
         {
-            if(!decode_some_prompt_end_delim_with_thinking(
-                    s.mt_p->prompt_end_delim, s))
-            {
-                return false; // (called function logged)
-            }
+            MT_LOG_ERR("Decoding prompt end delimiter!\n");
+            return false;
         }
+        return true;
     }
 
-    return true;
+    // There are thinking/reasoning delimiters (this is possible, if thinking/
+    // reasoning is just disabled for a model which supports enabling/disabling
+    // thinking/reasoning).
+
+    return decode_some_prompt_end_delim_with_thinking( // (logs on error)
+        s.mt_p->prompt_end_delim, s);
 }
 
 MT_EXPORT_LLM_API bool __stdcall mt_llm_query(
