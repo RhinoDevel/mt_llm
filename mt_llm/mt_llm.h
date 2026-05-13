@@ -62,6 +62,7 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_state_restore(
  *  - Slot index may be 0 or 1.
  *  - Automatically inserts prompt_template.sys_prompt_beg_delim and
  *    .sys_prompt_mid_delim around the given system prompt, too.
+ *  - Totally ignores slot's configured system prompt.
  *  - Returns false and does nothing, if not initialized or invalid slot index
  *    or configured for embeddings creation or reranking or configured to use a
  *    model in thinking/reasoning mode or token count of context is not zero.
