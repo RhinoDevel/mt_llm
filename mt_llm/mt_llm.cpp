@@ -1001,10 +1001,12 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_decode_sys_prompt(
     // s_qwen3 (supported, here):
     // --------------------------
     // .sys_prompt_beg_delim = "<|im_start|>" "system\n"
+    // *** GIVEN sys_prompt ***
     // .sys_prompt_mid_delim = "<|im_end|>\n" "<|im_start|>" "user\n"
     // .sys_prompt_end_delim = "<|im_end|>\n" "<|im_start|>" "assistant" "\n" "<think>" "\n" "\n" "</think>" "\n" "\n"
     // .prompt_beg_delim = "<|im_start|>" "user\n"
     // .prompt_end_delim = "<|im_end|>\n" "<|im_start|>" "assistant" "\n" "<think>" "\n" "\n" "</think>" "\n" "\n"
+    // 
     // .think_beg_delim = "<think>"
     // .think_end_delim = "</think>"
 
@@ -1077,8 +1079,11 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_decode_response(
     // .sys_prompt_beg_delim = "<|im_start|>" "system\n"
     // .sys_prompt_mid_delim = "<|im_end|>\n" "<|im_start|>" "user\n"
     // .sys_prompt_end_delim = "<|im_end|>\n" "<|im_start|>" "assistant" "\n" "<think>" "\n" "\n" "</think>" "\n" "\n"
+    // *** GIVEN response (option 1/2) ***
     // .prompt_beg_delim = "<|im_start|>" "user\n"
     // .prompt_end_delim = "<|im_end|>\n" "<|im_start|>" "assistant" "\n" "<think>" "\n" "\n" "</think>" "\n" "\n"
+    // *** GIVEN response (option 2/2) ***
+    // 
     // .think_beg_delim = "<think>"
     // .think_end_delim = "</think>"
 
@@ -1160,9 +1165,12 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_decode_request(
     // --------------------------
     // .sys_prompt_beg_delim = "<|im_start|>" "system\n"
     // .sys_prompt_mid_delim = "<|im_end|>\n" "<|im_start|>" "user\n"
+    // *** GIVEN request (option 1/2) ***
     // .sys_prompt_end_delim = "<|im_end|>\n" "<|im_start|>" "assistant" "\n" "<think>" "\n" "\n" "</think>" "\n" "\n"
     // .prompt_beg_delim = "<|im_start|>" "user\n"
+    // *** GIVEN request (option 2/2) ***
     // .prompt_end_delim = "<|im_end|>\n" "<|im_start|>" "assistant" "\n" "<think>" "\n" "\n" "</think>" "\n" "\n"
+    // 
     // .think_beg_delim = "<think>"
     // .think_end_delim = "</think>"
 
