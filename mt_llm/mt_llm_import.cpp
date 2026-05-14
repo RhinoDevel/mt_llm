@@ -6,6 +6,7 @@
 #include <cassert>
 
 #include "mt_llm_import.h"
+#include "mt_llm.h"
 #include "mt_llm_log.h"
 
 MT_EXPORT_LLM_API bool __stdcall mt_llm_import(
@@ -13,6 +14,8 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_import(
     int const messages_cnt,
     int const slot_index)
 {
+    int i = -1;
+
     if(messages == nullptr)
     {
         MT_LOG_ERR("No messages given!\n");
@@ -23,7 +26,7 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_import(
         MT_LOG_ERR("Invalid message count given (0 or lower)!\n");
         return false;
     }
-    for(int i = 0; i < messages_cnt; ++i)
+    while(++i < messages_cnt)
     {
         if(messages[i] == nullptr)
         {
@@ -37,11 +40,31 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_import(
         }
     }
 
-    if(slot_index != 0 && slot_index != 1)
-    {
-        MT_LOG_ERR("Unsupported slot index given, doing nothing.\n");
-        return false;
-    }
+    // (not updating configured system prompt, here)
+    mt_llm_reset(nullptr, slot_index);
 
-	return false; // TODO: Implement!
+    i = 0;
+    if(!mt_llm_decode_sys_prompt(messages[i], slot_index))
+    {
+        return false; // (called function logged)
+    }
+    while(++i < messages_cnt)
+    {
+        if(i % 2 == 1)
+        {
+            // User prompt/query/request.
+            if(!mt_llm_decode_request(messages[i], slot_index, i == 1))
+            {
+                return false; // (called function logged)
+            }
+            continue;
+        }
+
+        // LLM answer/response.
+        if(!mt_llm_decode_response(messages[i], slot_index))
+        {
+            return false;
+        }
+    }
+    return true;
 }
