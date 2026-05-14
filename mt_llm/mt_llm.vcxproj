@@ -21,6 +21,7 @@
   <ItemGroup>
     <ClInclude Include="mt_llm.h" />
     <ClInclude Include="mt_llm_ctx.h" />
+    <ClInclude Include="mt_llm_import.h" />
     <ClInclude Include="mt_llm_lib.h" />
     <ClInclude Include="mt_llm_log.h" />
     <ClInclude Include="mt_llm_snapshot.h" />
@@ -33,6 +34,7 @@
   <ItemGroup>
     <ClCompile Include="mt_llm.cpp" />
     <ClCompile Include="mt_llm_ctx.cpp" />
+    <ClCompile Include="mt_llm_import.cpp" />
     <ClCompile Include="mt_llm_model.cpp" />
     <ClCompile Include="mt_llm_p.cpp" />
     <ClCompile Include="mt_llm_snapshot.cpp" />

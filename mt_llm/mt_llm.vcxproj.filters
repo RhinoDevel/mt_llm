@@ -45,6 +45,9 @@
     <ClInclude Include="mt_llm_state.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="mt_llm_import.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="mt_llm.cpp">
@@ -60,6 +63,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="mt_llm_snapshot.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="mt_llm_import.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
