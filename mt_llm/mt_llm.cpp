@@ -1463,7 +1463,7 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_create_embeddings(
 
 MT_EXPORT_LLM_API float* __stdcall mt_llm_rerank(
     char const * const query,
-    char const * const * documents,
+    char const * const * const documents,
     int const doc_count,
     int const slot_index)
 {
