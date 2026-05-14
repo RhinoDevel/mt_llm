@@ -1297,8 +1297,7 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_create_embeddings(
 
     assert(out_count != nullptr);
 
-    if(prompt == nullptr
-        || (strnlen(prompt, 65535) == 65535)) // <- Hard-coded limit.
+    if(prompt == nullptr || (strnlen(prompt, MT_LLM_STR_LIM) == MT_LLM_STR_LIM))
     {
         MT_LOG_ERR("Prompt is not given or it is no or a too long C-string!\n");
         return nullptr;
@@ -1486,8 +1485,7 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_rerank(
     // *** Check input arguments and (context) configuration:                ***
     // *************************************************************************
 
-    if(query == nullptr
-        || (strnlen(query, 65535) == 65535)) // <- Hard-coded limit.
+    if(query == nullptr || (strnlen(query, MT_LLM_STR_LIM) == MT_LLM_STR_LIM))
     {
         MT_LOG_ERR("Query is not given or it is no or a too long C-string!\n");
         return nullptr;
@@ -1510,7 +1508,7 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_rerank(
             MT_LOG_ERR("Document at index %d is \"unset\" (null)!\n", i);
             return nullptr;
         }
-        if(strnlen(documents[i], 65535) == 65535) // <- Hard-coded limit.
+        if(strnlen(documents[i], MT_LLM_STR_LIM) == MT_LLM_STR_LIM)
         {
             MT_LOG_ERR("Document at index %d is a too long C-string!\n", i);
             return nullptr;

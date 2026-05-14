@@ -26,7 +26,7 @@ extern "C" {
  */
 MT_EXPORT_LLM_API bool __stdcall mt_llm_import(
 	char const * const * const messages,
-	int const messages_cnt,
+	int const msg_cnt,
 	int const slot_index);
 
 #ifdef __cplusplus

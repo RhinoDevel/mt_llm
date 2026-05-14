@@ -11,7 +11,7 @@
 
 MT_EXPORT_LLM_API bool __stdcall mt_llm_import(
 	char const * const * const messages,
-    int const messages_cnt,
+    int const msg_cnt,
     int const slot_index)
 {
     int i = -1;
@@ -21,19 +21,19 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_import(
         MT_LOG_ERR("No messages given!\n");
         return false;
     }
-    if(messages_cnt < 1)
+    if(msg_cnt < 1)
     {
         MT_LOG_ERR("Invalid message count given (0 or lower)!\n");
         return false;
     }
-    while(++i < messages_cnt)
+    while(++i < msg_cnt)
     {
         if(messages[i] == nullptr)
         {
             MT_LOG_ERR("Message at index %d is \"unset\" (null)!\n", i);
             return false;
         }
-        if(strnlen(messages[i], 65535) == 65535) // <- Hard-coded limit.
+        if(strnlen(messages[i], MT_LLM_STR_LIM) == MT_LLM_STR_LIM)
         {
             MT_LOG_ERR("Message at index %d is a too long C-string!\n", i);
             return false;
@@ -48,7 +48,7 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_import(
     {
         return false; // (called function logged)
     }
-    while(++i < messages_cnt)
+    while(++i < msg_cnt)
     {
         if(i % 2 == 1)
         {

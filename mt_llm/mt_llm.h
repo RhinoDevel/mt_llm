@@ -18,6 +18,8 @@
 
 #include "mt_llm_p.h"
 
+#define MT_LLM_STR_LIM 65535
+
 #ifdef __cplusplus
 extern "C" {
 #endif //__cplusplus
