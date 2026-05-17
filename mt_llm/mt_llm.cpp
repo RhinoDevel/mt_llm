@@ -726,7 +726,15 @@ static bool inference(mt_llm_s& s)
             static_cast<float>(n_decode) / t_decode_seconds);
     }
 
-    return s.last_tok_type == MT_TOK_TYPE_SAMPLED_EOG;
+    bool const errOcc = s.last_tok_type != MT_TOK_TYPE_SAMPLED_EOG;
+
+    if(errOcc && max_tok_cnt <= s.tok_cnt)
+    {
+        assert(max_tok_cnt == s.tok_cnt);
+        MT_LOG_ERR("Max. count of %d tokens reached (context is full)!\n", max_tok_cnt);
+    }
+
+    return !errOcc;
 }
 
 /**
