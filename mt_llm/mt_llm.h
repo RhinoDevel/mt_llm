@@ -26,6 +26,16 @@ extern "C" {
 
 MT_EXPORT_LLM_API void __stdcall mt_llm_free(void * const ptr);
 
+/** Return maximum token count (context length) actually used (as the value is
+ *  unknown to the user, if mt_llm_p.n_ctx is set to 0).
+ * 
+ * - Slot index may be 0 or 1.
+ * - Returns -1, if not initialized.
+ * - Returns -2, if given slot index is invalid.
+ */
+MT_EXPORT_LLM_API int __stdcall mt_llm_get_max_token_count(
+    int const slot_index);
+
 /**
  * - Slot index may be 0 or 1.
  * - Returns -1, if not initialized.

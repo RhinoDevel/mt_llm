@@ -647,6 +647,11 @@ static std::vector<float> create_dig_probs(mt_llm_s const & s)
     return ret_val;
 }
 
+static int get_max_token_count(mt_llm_s const &s)
+{
+    return static_cast<int>(llama_n_ctx(s.ctx));
+}
+
 static bool inference(mt_llm_s& s)
 {
     // For performance measurement:
@@ -657,7 +662,7 @@ static bool inference(mt_llm_s& s)
     std::vector<float> dig_probs;
 
     // Maximum count of tokens the context can hold.
-    int const max_tok_cnt = static_cast<int>(llama_n_ctx(s.ctx));
+    int const max_tok_cnt = get_max_token_count(s);
 
     while(s.tok_cnt < max_tok_cnt)
     {
@@ -826,6 +831,23 @@ static std::vector<float> rerank_batch_decode(
 MT_EXPORT_LLM_API void __stdcall mt_llm_free(void * const ptr)
 {
     free(ptr);
+}
+
+MT_EXPORT_LLM_API int __stdcall mt_llm_get_max_token_count(
+    int const slot_index)
+{
+    if(slot_index != 0 && slot_index != 1)
+    {
+        MT_LOG_ERR("Invalid slot index given!\n");
+        return -2;
+    }
+    if(s_slots[slot_index] == nullptr)
+    {
+        MT_LOG_ERR("Not intialized!\n");
+        return -1;
+    }
+
+    return get_max_token_count(*s_slots[slot_index]);
 }
 
 MT_EXPORT_LLM_API int mt_llm_get_token_count(
@@ -1343,7 +1365,7 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_create_embeddings(
             || llama_pooling_type(s.ctx) == LLAMA_POOLING_TYPE_MEAN
             || llama_pooling_type(s.ctx) == LLAMA_POOLING_TYPE_LAST);
 
-    uint32_t const n_ctx = llama_n_ctx(s.ctx);
+    int const n_ctx = get_max_token_count(s);
 
     // *************************************************************************
     // *** Clear the memory (K/V cache):                                     ***
@@ -1391,10 +1413,10 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_create_embeddings(
     }
 #endif //NDEBUG
 
-    if(n_ctx < inp.size())
+    if(n_ctx < static_cast<int>(inp.size()))
     {
         MT_LOG_ERR(
-            "Input prompt token count is %zu, but context length is smaller (%u)!\n",
+            "Input prompt token count is %zu, but context length is smaller (%d)!\n",
             inp.size(),
             n_ctx);
         return nullptr;
@@ -1567,7 +1589,7 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_rerank(
         return nullptr;
     }
 
-    uint32_t const n_ctx = llama_n_ctx(s.ctx);
+    int const n_ctx = get_max_token_count(s);
 
     uint32_t const n_batch = llama_n_batch(s.ctx);
 
@@ -1946,8 +1968,8 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_reinit(
     }
 
     {
-        int32_t const n_ctx_train = llama_model_n_ctx_train(s.model->model),
-            n_ctx_ctx = static_cast<int32_t>(llama_n_ctx(s.ctx)); // Bold cast?
+        int32_t const n_ctx_train = llama_model_n_ctx_train(s.model->model);
+        int32_t const n_ctx_ctx = static_cast<int32_t>(get_max_token_count(s));
 
         if(n_ctx_train < n_ctx_ctx)
         {
