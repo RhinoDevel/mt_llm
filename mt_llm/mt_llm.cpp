@@ -671,6 +671,7 @@ static bool inference(mt_llm_s& s)
             && s.last_tok_type == MT_TOK_TYPE_SAMPLED_NON_EOG_NON_CONTROL)
         {
             decode_irq_tokens(s); // Called function logs on error.
+            assert(s.last_tok_type == MT_TOK_TYPE_IRQ);
             break;
         }
 
@@ -726,15 +727,16 @@ static bool inference(mt_llm_s& s)
             static_cast<float>(n_decode) / t_decode_seconds);
     }
 
-    bool const errOcc = s.last_tok_type != MT_TOK_TYPE_SAMPLED_EOG;
+    bool const lastTokTypeIsEog = s.last_tok_type == MT_TOK_TYPE_SAMPLED_EOG;
 
-    if(errOcc && max_tok_cnt <= s.tok_cnt)
+    if(!lastTokTypeIsEog && max_tok_cnt <= s.tok_cnt)
     {
         assert(max_tok_cnt == s.tok_cnt);
         MT_LOG_ERR("Max. count of %d tokens reached (context is full)!\n", max_tok_cnt);
     }
 
-    return !errOcc;
+    return s.last_tok_type == MT_TOK_TYPE_IRQ // <- No error (by definition).
+        || lastTokTypeIsEog;
 }
 
 /**
