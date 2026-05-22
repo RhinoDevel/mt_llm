@@ -12,7 +12,8 @@
 MT_EXPORT_LLM_API bool __stdcall mt_llm_import(
 	char const * const * const messages,
     int const msg_cnt,
-    int const slot_index)
+    int const slot_index,
+    bool const no_last_prompt_beg_delim)
 {
     int i = -1;
 
@@ -61,7 +62,10 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_import(
         }
 
         // LLM answer/response.
-        if(!mt_llm_decode_response(messages[i], slot_index))
+        if(!mt_llm_decode_response(
+                messages[i],
+                slot_index,
+                no_last_prompt_beg_delim && i + 1 == msg_cnt))
         {
             return false;
         }
