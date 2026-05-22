@@ -1061,7 +1061,9 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_decode_sys_prompt(
 }
 
 MT_EXPORT_LLM_API bool __stdcall mt_llm_decode_response(
-    char const * const response, int const slot_index)
+    char const * const response,
+    int const slot_index,
+    bool const no_last_prompt_beg_delim)
 {
     if(response == nullptr)
     {
@@ -1138,10 +1140,13 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_decode_response(
         return false;
     }
 
-    if(!decode_str(s.mt_p->prompt_beg_delim, MT_TOK_TYPE_DELIM, s))
+    if(!no_last_prompt_beg_delim)
     {
-        MT_LOG_ERR("Decoding prompt begin delimiter!\n");
-        return false;
+        if(!decode_str(s.mt_p->prompt_beg_delim, MT_TOK_TYPE_DELIM, s))
+        {
+            MT_LOG_ERR("Decoding prompt begin delimiter!\n");
+            return false;
+        }
     }
 
     return true;

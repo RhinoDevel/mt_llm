@@ -111,7 +111,9 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_decode_request(
  *    model in thinking/reasoning mode.
  */
 MT_EXPORT_LLM_API bool __stdcall mt_llm_decode_response(
-    char const * const response, int const slot_index);
+    char const * const response,
+    int const slot_index,
+    bool const no_last_prompt_beg_delim);
 
 /**
  * - Slot index may be 0 or 1.
