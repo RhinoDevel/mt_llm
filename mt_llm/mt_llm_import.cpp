@@ -1,8 +1,9 @@
 
 // Marcel Timm, RhinoDevel, 2026may14
 
+#include <cstdio>
 #include <cstdint>
-#include <string>
+#include <cstring>
 #include <cassert>
 
 #include "mt_llm_import.h"
