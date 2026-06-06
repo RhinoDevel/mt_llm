@@ -1870,10 +1870,23 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_reinit(
         return false;
     }
 
+    if(mt_p == nullptr)
+    {
+        MT_LOG_ERR("No parameters given (are NULL)!");
+        return false;
+    }
+
     init_common_if_necessary(mt_p->enable_llama_cpp_log != 0);
 
     if(s_slots[slot_index] != nullptr)
     {
+        if(mt_llm_p_are_equal(*mt_p, *s_slots[slot_index]->mt_p, true, false))
+        {
+            MT_LOG("Doing reset, only..");
+            mt_llm_reset(mt_p->sys_prompt, slot_index);
+            return true;
+        }
+
         mt_llm_deinit(slot_index);
     }
     assert(s_slots[slot_index] == nullptr);

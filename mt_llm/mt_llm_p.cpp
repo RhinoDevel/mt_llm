@@ -60,6 +60,148 @@ void mt_llm_p_free(struct mt_llm_p * const mt_p)
     free(mt_p);
 }
 
+bool mt_llm_p_are_equal(
+    struct mt_llm_p const & a,
+    struct mt_llm_p const & b, 
+    bool const skip_sys_prompt,
+    bool const skip_callback)
+{
+    if(a.n_gpu_layers != b.n_gpu_layers)
+    {
+        return false;
+    }
+
+    if(a.n_ctx != b.n_ctx)
+    {
+        return false;
+    }
+    if(a.threads != b.threads)
+    {
+        return false;
+    }
+    if(a.emb_or_rerank != b.emb_or_rerank)
+    {
+        return false;
+    }
+
+    if(a.seed != b.seed)
+    {
+        return false;
+    }
+    if(a.top_k != b.top_k)
+    {
+        return false;
+    }
+    if(a.top_p != b.top_p)
+    {
+        return false;
+    }
+    if(a.min_p != b.min_p)
+    {
+        return false;
+    }
+    if(a.temp != b.temp)
+    {
+        return false;
+    }
+    if(strncmp(a.grammar, b.grammar, MT_LLM_P_LEN_GRAMMAR) != 0)
+    {
+        return false;
+    }
+
+    if((a.cpu_moe == 0) != (b.cpu_moe == 0))
+    {
+        return false;
+    }
+    if(a.n_cpu_moe != b.n_cpu_moe)
+    {
+        return false;
+    }
+    if(strncmp(
+        a.model_file_path, b.model_file_path, MT_LLM_P_LEN_MODEL_FILE_PATH)
+            != 0)
+    {
+        return false;
+    }
+    if(!skip_sys_prompt)
+    {
+        if(strncmp(a.sys_prompt, b.sys_prompt, MT_LLM_P_LEN_SYS_PROMPT) != 0)
+        {
+            return false;
+        }
+    }
+    if(strncmp(
+        a.prompt_beg_delim, b.prompt_beg_delim, MT_LLM_P_LEN_PROMPT_BEG_DELIM)
+            != 0)
+    {
+        return false;
+    }
+    if(strncmp(
+        a.prompt_end_delim, b.prompt_end_delim, MT_LLM_P_LEN_PROMPT_END_DELIM)
+            != 0)
+    {
+        return false;
+    }
+    if(strncmp(
+        a.sys_prompt_beg_delim,
+        b.sys_prompt_beg_delim,
+        MT_LLM_P_LEN_SYS_PROMPT_BEG_DELIM)
+            != 0)
+    {
+        return false;
+    }
+    if(strncmp(
+        a.sys_prompt_mid_delim,
+        b.sys_prompt_mid_delim,
+        MT_LLM_P_LEN_SYS_PROMPT_MID_DELIM)
+            != 0)
+    {
+        return false;
+    }
+    if(strncmp(
+        a.sys_prompt_end_delim,
+        b.sys_prompt_end_delim,
+        MT_LLM_P_LEN_SYS_PROMPT_END_DELIM)
+            != 0)
+    {
+        return false;
+    }
+    if(strncmp(
+        a.think_beg_delim, b.think_beg_delim, MT_LLM_P_LEN_THINK_BEG_DELIM)
+            != 0)
+    {
+        return false;
+    }
+    if(strncmp(
+        a.think_end_delim, b.think_end_delim, MT_LLM_P_LEN_THINK_END_DELIM)
+            != 0)
+    {
+        return false;
+    }
+    if((a.try_prompts_by_model == 0) != (b.try_prompts_by_model == 0))
+    {
+        return false;
+    }
+    if((a.enable_thinking == 0) != (b.enable_thinking == 0))
+    {
+        return false;
+    }
+    if((a.enable_llama_cpp_log == 0) != (b.enable_llama_cpp_log == 0))
+    {
+        return false;
+    }
+
+    if(!skip_callback)
+    {
+        if(a.callback != b.callback)
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 struct mt_llm_p * mt_llm_p_create_copy(struct mt_llm_p const & mt_p)
 {
     struct mt_llm_p * copy = nullptr;

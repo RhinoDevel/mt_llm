@@ -173,6 +173,7 @@ MT_EXPORT_LLM_API void __stdcall mt_llm_deinit(int const slot_index);
 
 /**
  * - Slot index may be 0 or 1.
+ * - Only calls mt_llm_reset() instead of full re-initialization, if possible.
  * - De-initializes first, if already initialized.
  */
 MT_EXPORT_LLM_API bool __stdcall mt_llm_reinit(
