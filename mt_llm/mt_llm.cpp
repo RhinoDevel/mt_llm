@@ -46,7 +46,12 @@ static void init_common_if_necessary(bool const enable_llama_cpp_log)
     {
         common_init();
 
-        if(!enable_llama_cpp_log)
+        if(enable_llama_cpp_log)
+        {
+            // Not really sure, why this is necessary.
+            common_log_set_verbosity_thold(LOG_LEVEL_TRACE);
+        }
+        else
         {
             common_log_pause(common_log_main());
             //
