@@ -4,6 +4,8 @@
 #ifndef MT_LLM_LOG
 #define MT_LLM_LOG
 
+#include <cstdio>
+
 #define MT_LOG_ERR(fmt, ...) \
     fprintf(stderr, "%s : ERROR: " fmt, __func__, ##__VA_ARGS__)
 
