@@ -7,22 +7,53 @@
 
 #include "mt_llm_snapshot.h"
 #include "mt_llm_state.h"
-#include "mt_llm_slot.h"
+#include "mt_llm_node.h"
 #include "mt_llm.h"
 #include "mt_llm_log.h"
 
-static mt_llm_slot * s_snapshots = nullptr;
+static mt_llm_node * s_snapshots = nullptr;
+
+static void slot_remove(int const slot_index)
+{
+	mt_llm_node * const slot = mt_llm_node_find(s_snapshots, slot_index);
+
+	if(slot == nullptr)
+	{
+		MT_LOG("No snapshot was taken for slot with index %d!\n", slot_index);
+		return;
+	}
+
+	s_snapshots = mt_llm_node_remove(s_snapshots, slot);
+
+	free(static_cast<mt_llm_state*>(slot->data)->state);
+	slot->data = nullptr;
+	mt_llm_node_free(slot);
+}
+
+static void slot_update(mt_llm_state * const state, int const slot_index)
+{
+	assert(state != nullptr);
+	assert(0 < state->size);
+
+	mt_llm_snapshot_clear(slot_index);
+
+	mt_llm_node * const slot = mt_llm_node_create();
+
+	slot->data = state;
+	slot->index = slot_index;
+
+	s_snapshots = mt_llm_node_add(s_snapshots, slot);
+}
 
 MT_EXPORT_LLM_API void __stdcall mt_llm_snapshot_clear(int const slot_index)
 {
-	s_snapshots = mt_llm_slot_remove(s_snapshots, slot_index, true);
+	slot_remove(slot_index);
 	MT_LOG("State at slot with index %d is cleared.\n", slot_index);
 }
 
 MT_EXPORT_LLM_API bool mt_llm_snapshot_restore(int const slot_index)
 {
-	struct mt_llm_slot const * const slot = mt_llm_slot_find(
-		s_snapshots, slot_index);
+	mt_llm_node const * const slot = mt_llm_node_find(s_snapshots, slot_index);
 
 	if(slot == nullptr)
 	{
@@ -31,15 +62,15 @@ MT_EXPORT_LLM_API bool mt_llm_snapshot_restore(int const slot_index)
 		return false;
 	}
 
-	assert(0 < slot->state->size);
+	mt_llm_state * const state = static_cast<mt_llm_state*>(slot->data);
 
-	return mt_llm_state_restore(slot->state, slot_index); // (logs on error)
+	assert(0 < state->size);
+
+	return mt_llm_state_restore(state, slot_index); // (logs on error)
 }
 
 MT_EXPORT_LLM_API bool mt_llm_snapshot_update(int const slot_index)
 {
-	mt_llm_snapshot_clear(slot_index);
-
 	mt_llm_state * const state =
 		mt_llm_state_create(slot_index); // (logs on error)
 
@@ -47,10 +78,7 @@ MT_EXPORT_LLM_API bool mt_llm_snapshot_update(int const slot_index)
 	{
 		return false;
 	}
-
-	assert(0 < state->size);
-
-	s_snapshots = mt_llm_slot_update(s_snapshots, slot_index, state);
+	slot_update(state, slot_index);
 	return true;
 }
 
@@ -61,8 +89,7 @@ MT_EXPORT_LLM_API bool mt_llm_snapshot_to_file(
 	size_t bytes_to_write = 0;
 	size_t items_written = 0;
 
-	struct mt_llm_slot const * const slot = mt_llm_slot_find(
-		s_snapshots, slot_index);
+	mt_llm_node const * const slot = mt_llm_node_find(s_snapshots, slot_index);
 
 	if(slot == nullptr)
 	{
@@ -76,7 +103,7 @@ MT_EXPORT_LLM_API bool mt_llm_snapshot_to_file(
 		return false;
 	}
 
-	mt_llm_state * const state = slot->state;
+	mt_llm_state * const state = static_cast<mt_llm_state*>(slot->data);
 
 	fp = fopen(abs_file_path, "wb");
 	if(fp == nullptr)
@@ -239,6 +266,6 @@ MT_EXPORT_LLM_API bool mt_llm_snapshot_from_file(
 	fclose(fp);
 	fp = nullptr;
 
-	s_snapshots = mt_llm_slot_update(s_snapshots, slot_index, state);
+	slot_update(state, slot_index);
 	return true;
 }

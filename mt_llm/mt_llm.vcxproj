@@ -23,8 +23,8 @@
     <ClInclude Include="mt_llm_ctx.h" />
     <ClInclude Include="mt_llm_import.h" />
     <ClInclude Include="mt_llm_lib.h" />
+    <ClInclude Include="mt_llm_node.h" />
     <ClInclude Include="mt_llm_log.h" />
-    <ClInclude Include="mt_llm_slot.h" />
     <ClInclude Include="mt_llm_snapshot.h" />
     <ClInclude Include="mt_llm_model.h" />
     <ClInclude Include="mt_llm_p.h" />
@@ -36,9 +36,9 @@
     <ClCompile Include="mt_llm.cpp" />
     <ClCompile Include="mt_llm_ctx.cpp" />
     <ClCompile Include="mt_llm_import.cpp" />
+    <ClCompile Include="mt_llm_node.cpp" />
     <ClCompile Include="mt_llm_model.cpp" />
     <ClCompile Include="mt_llm_p.cpp" />
-    <ClCompile Include="mt_llm_slot.cpp" />
     <ClCompile Include="mt_llm_snapshot.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

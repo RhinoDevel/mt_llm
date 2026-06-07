@@ -48,6 +48,9 @@
     <ClInclude Include="mt_llm_import.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="mt_llm_node.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="mt_llm.cpp">
@@ -66,6 +69,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="mt_llm_import.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="mt_llm_node.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
