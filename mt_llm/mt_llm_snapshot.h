@@ -18,7 +18,11 @@
 extern "C" {
 #endif //__cplusplus
 
+/**
+ * - Does nothing, if slot with given index does not exist.
+ */
 MT_EXPORT_LLM_API void __stdcall mt_llm_snapshot_clear(int const slot_index);
+
 MT_EXPORT_LLM_API bool __stdcall mt_llm_snapshot_update(int const slot_index);
 MT_EXPORT_LLM_API bool __stdcall mt_llm_snapshot_restore(int const slot_index);
 
