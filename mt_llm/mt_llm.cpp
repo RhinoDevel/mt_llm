@@ -20,12 +20,10 @@
 #include "mt_llm_s.h"
 #include "mt_llm_log.h"
 #include "mt_llm_state.h"
-
+#include "mt_llm_node.h"
 #include "mt_llm_tok_type.h"
 
-// mt_llm_snapshot is also hard-coded to two LLM slots!
-static struct mt_llm_s * s_slots[] = { nullptr, nullptr };
-
+static mt_llm_node * s_slots = nullptr;
 static bool s_is_common_init = false;
 static bool s_is_backend_init = false;
 
@@ -838,38 +836,33 @@ MT_EXPORT_LLM_API void __stdcall mt_llm_free(void * const ptr)
     free(ptr);
 }
 
-MT_EXPORT_LLM_API int __stdcall mt_llm_get_max_token_count(
-    int const slot_index)
+MT_EXPORT_LLM_API int __stdcall mt_llm_get_max_token_count(int const slot_index)
 {
-    if(slot_index != 0 && slot_index != 1)
+    mt_llm_node * const node = mt_llm_node_find(s_slots, slot_index);
+
+    if(node == nullptr)
     {
-        MT_LOG_ERR("Invalid slot index given!\n");
-        return -2;
-    }
-    if(s_slots[slot_index] == nullptr)
-    {
-        MT_LOG_ERR("Not intialized!\n");
+        MT_LOG_ERR("Slot with index %d is not intialized!\n", slot_index);
         return -1;
     }
+    assert(node->data != nullptr);
 
-    return get_max_token_count(*s_slots[slot_index]);
+    return get_max_token_count(*static_cast<mt_llm_s*>(node->data));
 }
 
 MT_EXPORT_LLM_API int mt_llm_get_token_count(
     char const * const text, bool const add_special, int const slot_index)
 {
-    if(slot_index != 0 && slot_index != 1)
+    mt_llm_node * const node = mt_llm_node_find(s_slots, slot_index);
+
+    if(node == nullptr)
     {
-        MT_LOG_ERR("Invalid slot index given!\n");
-        return -3;
-    }
-    if(s_slots[slot_index] == nullptr)
-    {
-        MT_LOG_ERR("Not intialized!\n");
+        MT_LOG_ERR("Slot with index %d is not intialized!\n", slot_index);
         return -1;
     }
+    assert(node->data != nullptr);
 
-    mt_llm_s const &s = *s_slots[slot_index];
+    mt_llm_s const &s = *static_cast<mt_llm_s*>(node->data);
 
     if(text == nullptr)
     {
@@ -891,20 +884,18 @@ MT_EXPORT_LLM_API int mt_llm_get_token_count(
 MT_EXPORT_LLM_API struct mt_llm_state * __stdcall mt_llm_state_create(
     int const slot_index)
 {
-    struct mt_llm_state * state = nullptr;
+    mt_llm_state* state = nullptr;
 
-    if(slot_index != 0 && slot_index != 1)
+    mt_llm_node * const node = mt_llm_node_find(s_slots, slot_index);
+
+    if(node == nullptr)
     {
-        MT_LOG_ERR("Invalid slot index given!\n");
+        MT_LOG_ERR("Slot with index %d is not intialized!\n", slot_index);
         return nullptr;
     }
-    if(s_slots[slot_index] == nullptr)
-    {
-        MT_LOG_ERR("Not intialized!\n");
-        return nullptr;
-    }
+    assert(node->data != nullptr);
 
-    mt_llm_s const &s = *s_slots[slot_index];
+    mt_llm_s const &s = *static_cast<mt_llm_s*>(node->data);
 
     assert(s.ctx != nullptr);
 
@@ -955,18 +946,16 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_state_restore(
     assert(state->state != nullptr);
     assert(0 < state->size);
 
-    if(slot_index != 0 && slot_index != 1)
-    {
-        MT_LOG_ERR("Invalid slot index given!\n");
-        return false;
-    }
-    if(s_slots[slot_index] == nullptr)
-    {
-        MT_LOG_ERR("Not intialized!\n");
-        return false;
-    }
+    mt_llm_node * const node = mt_llm_node_find(s_slots, slot_index);
 
-    mt_llm_s &s = *s_slots[slot_index];
+    if(node == nullptr)
+    {
+        MT_LOG_ERR("Slot with index %d is not intialized!\n", slot_index);
+        return false;
+    }
+    assert(node->data != nullptr);
+
+    mt_llm_s& s = *static_cast<mt_llm_s*>(node->data);
 
     assert(s.ctx != nullptr);
     
@@ -992,18 +981,17 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_decode_sys_prompt(
         MT_LOG_ERR("No system prompt given (is NULL), doing nothing.\n");
         return false;
     }
-    if(slot_index != 0 && slot_index != 1)
-    {
-        MT_LOG_ERR("Unsupported slot index given, doing nothing.\n");
-        return false;
-    }
-    if(s_slots[slot_index] == nullptr)
-    {
-        MT_LOG_ERR("Not intialized!\n");
-        return false;
-    }
 
-    mt_llm_s& s = *s_slots[slot_index];
+    mt_llm_node * const node = mt_llm_node_find(s_slots, slot_index);
+
+    if(node == nullptr)
+    {
+        MT_LOG_ERR("Slot with index %d is not intialized!\n", slot_index);
+        return false;
+    }
+    assert(node->data != nullptr);
+
+    mt_llm_s& s = *static_cast<mt_llm_s*>(node->data);
 
     if(s.mt_p->emb_or_rerank != 0)
     {
@@ -1075,18 +1063,17 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_decode_response(
         MT_LOG_ERR("No response given (is NULL), doing nothing.\n");
         return false;
     }
-    if(slot_index != 0 && slot_index != 1)
-    {
-        MT_LOG_ERR("Unsupported slot index given, doing nothing.\n");
-        return false;
-    }
-    if(s_slots[slot_index] == nullptr)
-    {
-        MT_LOG_ERR("Not intialized!\n");
-        return false;
-    }
 
-    mt_llm_s& s = *s_slots[slot_index];
+    mt_llm_node * const node = mt_llm_node_find(s_slots, slot_index);
+
+    if(node == nullptr)
+    {
+        MT_LOG_ERR("Slot with index %d is not intialized!\n", slot_index);
+        return false;
+    }
+    assert(node->data != nullptr);
+
+    mt_llm_s& s = *static_cast<mt_llm_s*>(node->data);
 
     if(s.mt_p->emb_or_rerank != 0)
     {
@@ -1165,18 +1152,17 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_decode_request(
         MT_LOG_ERR("No request given (is NULL), doing nothing.\n");
         return false;
     }
-    if(slot_index != 0 && slot_index != 1)
-    {
-        MT_LOG_ERR("Unsupported slot index given, doing nothing.\n");
-        return false;
-    }
-    if(s_slots[slot_index] == nullptr)
-    {
-        MT_LOG_ERR("Not intialized!\n");
-        return false;
-    }
 
-    mt_llm_s& s = *s_slots[slot_index];
+    mt_llm_node * const node = mt_llm_node_find(s_slots, slot_index);
+
+    if(node == nullptr)
+    {
+        MT_LOG_ERR("Slot with index %d is not intialized!\n", slot_index);
+        return false;
+    }
+    assert(node->data != nullptr);
+
+    mt_llm_s& s = *static_cast<mt_llm_s*>(node->data);
 
     if(s.mt_p->emb_or_rerank != 0)
     {
@@ -1257,18 +1243,16 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_query(
     bool const skip_sys_prompt_end_delim_and_inference,
     bool const follow_up_decode_prompt_and_sys_prompt_end_delim)
 {
-    if(slot_index != 0 && slot_index != 1)
-    {
-        MT_LOG("Error: Unsupported slot index given, doing nothing.\n");
-        return false;
-    }
-    if(s_slots[slot_index] == nullptr)
-    {
-        MT_LOG_ERR("Not intialized!\n");
-        return false;
-    }
+    mt_llm_node * const node = mt_llm_node_find(s_slots, slot_index);
 
-    mt_llm_s& s = *s_slots[slot_index];
+    if(node == nullptr)
+    {
+        MT_LOG_ERR("Slot with index %d is not intialized!\n", slot_index);
+        return false;
+    }
+    assert(node->data != nullptr);
+
+    mt_llm_s& s = *static_cast<mt_llm_s*>(node->data);
 
     if(s.mt_p->emb_or_rerank != 0)
     {
@@ -1345,18 +1329,16 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_create_embeddings(
         return nullptr;
     }
 
-    if(slot_index != 0 && slot_index != 1)
-    {
-        MT_LOG_ERR("Unsupported slot index given, doing nothing.\n");
-        return nullptr;
-    }
-    if(s_slots[slot_index] == nullptr)
-    {
-        MT_LOG_ERR("Not intialized!\n");
-        return nullptr;
-    }
+    mt_llm_node * const node = mt_llm_node_find(s_slots, slot_index);
 
-    mt_llm_s const &s = *s_slots[slot_index];
+    if(node == nullptr)
+    {
+        MT_LOG_ERR("Slot with index %d is not intialized!\n", slot_index);
+        return nullptr;
+    }
+    assert(node->data != nullptr);
+
+    mt_llm_s const &s = *static_cast<mt_llm_s*>(node->data);
 
     if(s.mt_p->emb_or_rerank != 1) // Hard-coded
     {
@@ -1557,18 +1539,16 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_rerank(
         }
     }
 
-    if(slot_index != 0 && slot_index != 1)
-    {
-        MT_LOG_ERR("Unsupported slot index given, doing nothing.\n");
-        return nullptr;
-    }
-    if(s_slots[slot_index] == nullptr)
-    {
-        MT_LOG_ERR("Not intialized!\n");
-        return nullptr;
-    }
+    mt_llm_node * const node = mt_llm_node_find(s_slots, slot_index);
 
-    mt_llm_s const &s = *s_slots[slot_index];
+    if(node == nullptr)
+    {
+        MT_LOG_ERR("Slot with index %d is not intialized!\n", slot_index);
+        return nullptr;
+    }
+    assert(node->data != nullptr);
+
+    mt_llm_s const &s = *static_cast<mt_llm_s*>(node->data);
 
     if(s.mt_p->emb_or_rerank != 2) // Hard-coded
     {
@@ -1776,18 +1756,21 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_rerank(
 MT_EXPORT_LLM_API void __stdcall mt_llm_reset(
     char const * const sys_prompt, int const slot_index)
 {
-    if(slot_index != 0 && slot_index != 1)
+    mt_llm_node * const node = mt_llm_node_find(s_slots, slot_index);
+
+    if(node == nullptr)
     {
-        MT_LOG("Warning: Unsupported slot index given, doing nothing.");
-        return; // Just do nothing.
+        MT_LOG_ERR("Slot with index %d is not intialized!\n", slot_index);
+        return;
+    }
+    if(node->data == nullptr)
+    {
+        assert(false); // Must not happen.
+        MT_LOG_ERR("Slot with index %d has not data!\n", slot_index);
+        return;
     }
 
-    if(s_slots[slot_index] == nullptr)
-    {
-        return; // Cannot do anything.
-    }
-
-    mt_llm_s& s = *s_slots[slot_index];
+    mt_llm_s& s = *static_cast<mt_llm_s*>(node->data);
 
     assert(s.mt_p != nullptr);
     assert(s.model != nullptr);
@@ -1813,19 +1796,20 @@ MT_EXPORT_LLM_API void __stdcall mt_llm_reset(
 MT_EXPORT_LLM_API void __stdcall mt_llm_deinit(int const slot_index)
 {
     mt_llm_s* s = nullptr;
+    mt_llm_node* node = mt_llm_node_find(s_slots, slot_index);
 
-    if(slot_index != 0 && slot_index != 1)
+    if(node == nullptr)
     {
-        MT_LOG("Warning: Unsupported slot index given, doing nothing.");
+        MT_LOG(
+            "Warning: Slot with index %d is not initialized, doing nothing.",
+            slot_index);
         return; // Just do nothing.
     }
+    assert(node->data != nullptr);
 
-    s = s_slots[slot_index];
+    s = static_cast<mt_llm_s*>(node->data);
 
-    if(s == nullptr)
-    {
-        return; // Just do nothing.
-    }
+    assert(s != nullptr);
 
     if(s->mt_p != nullptr)
     {
@@ -1847,28 +1831,28 @@ MT_EXPORT_LLM_API void __stdcall mt_llm_deinit(int const slot_index)
         mt_llm_model_free(s->model);
         s->model = nullptr;
     }
+    
+    free(s);
+    s = nullptr;
+    node->data = nullptr;
 
-    if(s_slots[0] == nullptr
-        && s_slots[1] == nullptr
-        && s_is_backend_init)
+    s_slots = mt_llm_node_remove(s_slots, node);
+
+    mt_llm_node_free(node);
+    node = nullptr;
+
+    if(s_slots == nullptr && s_is_backend_init)
     {
         llama_backend_free();
         s_is_backend_init = false;
     }
-
-    free(s);
-    s = nullptr;
-    s_slots[slot_index] = nullptr;
 }
 
 MT_EXPORT_LLM_API bool __stdcall mt_llm_reinit(
     struct mt_llm_p const * const mt_p, int const slot_index)
 {
-    if(slot_index != 0 && slot_index != 1)
-    {
-        MT_LOG_ERR("Unsupported slot index given!\n");
-        return false;
-    }
+    mt_llm_node* node = mt_llm_node_find(s_slots, slot_index);
+    mt_llm_s* s = nullptr;
 
     if(mt_p == nullptr)
     {
@@ -1878,18 +1862,20 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_reinit(
 
     init_common_if_necessary(mt_p->enable_llama_cpp_log != 0);
 
-    if(s_slots[slot_index] != nullptr)
+    if(node != nullptr)
     {
-        if(mt_llm_p_are_equal(*mt_p, *s_slots[slot_index]->mt_p, true, false))
+        s = static_cast<mt_llm_s*>(node->data);
+
+        if(mt_llm_p_are_equal(*mt_p, *s->mt_p, true, false))
         {
             MT_LOG("Doing reset, only..");
             mt_llm_reset(mt_p->sys_prompt, slot_index);
             return true;
         }
-
         mt_llm_deinit(slot_index);
+        node = nullptr;
+        s = nullptr;
     }
-    assert(s_slots[slot_index] == nullptr);
 
     if(mt_p->callback == nullptr && mt_p->emb_or_rerank == 0)
     {
@@ -1898,19 +1884,19 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_reinit(
         return false;
     }
 
-    s_slots[slot_index] = static_cast<struct mt_llm_s *>(
-        malloc(sizeof *s_slots[slot_index]));
-    if(s_slots[slot_index] == nullptr)
+    node = mt_llm_node_create();
+    node->index = slot_index;
+    s = static_cast<mt_llm_s*>(malloc(sizeof *s));
+    if(s == nullptr)
     {
         MT_LOG_ERR("Failed to allocate memory for settings!\n");
         //mt_llm_deinit(slot_index);
         return false;
     }
-
-    mt_llm_s& s = *s_slots[slot_index];
-
-    s.mt_p = mt_llm_p_create_copy(*mt_p);
-    if(s.mt_p == nullptr)
+    node->data = s;
+    s_slots = mt_llm_node_add(s_slots, node);
+    s->mt_p = mt_llm_p_create_copy(*mt_p);
+    if(s->mt_p == nullptr)
     {
         MT_LOG_ERR("Failed to deep-copy parameters!\n");
         mt_llm_deinit(slot_index);
@@ -1920,10 +1906,10 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_reinit(
     // Do not use mt_p from here on!
 
     // If not given, automatically set the thread count:
-    if(s.mt_p->threads == 0)
+    if(s->mt_p->threads == 0)
     {
-        s.mt_p->threads = (uint32_t)common_cpu_get_num_physical_cores();
-        assert(0 < s.mt_p->threads);
+        s->mt_p->threads = (uint32_t)common_cpu_get_num_physical_cores();
+        assert(0 < s->mt_p->threads);
     }
 
     // Do not change s_slots[slot_index]->mt_p properties from here on, with
@@ -1937,8 +1923,8 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_reinit(
     //       model (not the context!), here!
     // 
     // Initialize the model:
-    s.model = mt_llm_model_create(*s.mt_p);
-    if (s.model == nullptr)
+    s->model = mt_llm_model_create(*s->mt_p);
+    if (s->model == nullptr)
     {
         MT_LOG_ERR("Unable to load model!\n");
         mt_llm_deinit(slot_index);
@@ -1947,8 +1933,9 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_reinit(
 
     // Initialize the sampling (unnecessary for embeddings creation and
     // reranking usage):
-    s.sampler = create_sampler(llama_model_get_vocab(s.model->model), *s.mt_p);
-    if(s.sampler == nullptr)
+    s->sampler = create_sampler(
+        llama_model_get_vocab(s->model->model), *s->mt_p);
+    if(s->sampler == nullptr)
     {
         MT_LOG_ERR("Unable to create sampler!\n");
         mt_llm_deinit(slot_index);
@@ -1958,7 +1945,7 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_reinit(
     // Support for models with an encoder is currently not implemented (for
     // embeddings and reranking, models with encoder AND decoder are not
     // supported, anyway):
-    if(llama_model_has_encoder(s.model->model))
+    if(llama_model_has_encoder(s->model->model))
     {
         MT_LOG_ERR("Model has an encoder, that is currently not supported!\n");
         mt_llm_deinit(slot_index);
@@ -1967,9 +1954,9 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_reinit(
 
     // Modify prompt strings by model (name), if wanted (maybe unnecessary for
     // embeddings creation and reranking usage):
-    if(s.mt_p->try_prompts_by_model != 0)
+    if(s->mt_p->try_prompts_by_model != 0)
     {
-        mt_llm_model_try_set_prompts(*s.model, *s.mt_p);
+        mt_llm_model_try_set_prompts(*s->model, *s->mt_p);
         // Return value ignored, as called function logs (and this is no error).
     }
     else
@@ -1978,12 +1965,12 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_reinit(
     }
     
     // Do not change any s_slots[slot_index]->mt_p properties from here on!
-    mt_llm_p_print(*s.mt_p);
+    mt_llm_p_print(*s->mt_p);
 
     // Initialize the context:
 
-    s.ctx = mt_llm_ctx_create(*s.mt_p, *s.model);
-    if (s.ctx == nullptr)
+    s->ctx = mt_llm_ctx_create(*s->mt_p, *s->model);
+    if (s->ctx == nullptr)
     {
         MT_LOG_ERR("Creating context!\n");
         mt_llm_deinit(slot_index);
@@ -1991,18 +1978,18 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_reinit(
     }
 
     {
-        int32_t const n_ctx_train = llama_model_n_ctx_train(s.model->model);
-        int32_t const n_ctx_ctx = static_cast<int32_t>(get_max_token_count(s));
+        int32_t const n_ctx_train = llama_model_n_ctx_train(s->model->model);
+        int32_t const n_ctx_ctx = static_cast<int32_t>(get_max_token_count(*s));
 
         if(n_ctx_train < n_ctx_ctx)
         {
             // For non-embedding, non-reranking, interpreted as error here (by
             // definition):
-            if(s.mt_p->emb_or_rerank == 0)
+            if(s->mt_p->emb_or_rerank == 0)
             {
                 assert(
-                    s.mt_p->n_ctx == 0
-                        || static_cast<int32_t>(s.mt_p->n_ctx) == n_ctx_ctx);
+                    s->mt_p->n_ctx == 0
+                        || static_cast<int32_t>(s->mt_p->n_ctx) == n_ctx_ctx);
 
                 MT_LOG_ERR(
                     "Model was trained on %d tokens (wanted %d tokens)!\n",
@@ -2022,17 +2009,17 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_reinit(
 
     MT_LOG("System info: %s\n", llama_print_system_info());
 
-    s.last_tok_type = 0;
-    s.tok_cnt = 0;
+    s->last_tok_type = 0;
+    s->tok_cnt = 0;
 
-    if(llama_model_chat_template(s.model->model, nullptr) != nullptr)
+    if(llama_model_chat_template(s->model->model, nullptr) != nullptr)
     {
         bool const use_jinja = true;
         std::string chat_template; // Empty
         std::map<std::string, std::string> template_kwargs; // Empty
 
         common_chat_templates_ptr const chat_templates =
-            common_chat_templates_init(s.model->model, chat_template);
+            common_chat_templates_init(s->model->model, chat_template);
 
         std::string const chat_format_example = common_chat_format_example(
             chat_templates.get(), use_jinja, template_kwargs);
