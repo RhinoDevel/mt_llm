@@ -1743,7 +1743,12 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_rerank(
     float * const raw_scores =
         static_cast<float*>(malloc(scores.size() * sizeof *raw_scores));
 
-    assert(raw_scores != nullptr);
+    if(raw_scores == nullptr)
+    {
+        assert(false); // Must not happen.
+        MT_LOG_ERR("Failed to allocate memory for raw scores!\n");
+        return nullptr;
+    }
 
     for(int i = 0; i < static_cast<int>(scores.size()); ++i)
     {
