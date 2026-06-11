@@ -1644,15 +1644,15 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_rerank(
         }
 
         //MT_LOG("Number of tokens in prompt at index &d: %zu\n", i, inp.size());
-#ifndef NDEBUG
-        for(int j = 0; j < static_cast<int>(inp.size()); ++j)
-        {
-            MT_LOG(
-                "%6d => \"%s\"\n",
-                inp[j],
-                common_token_to_piece(s.ctx, inp[j]).c_str());
-        }
-#endif //NDEBUG
+//#ifndef NDEBUG
+//        for(int j = 0; j < static_cast<int>(inp.size()); ++j)
+//        {
+//            MT_LOG(
+//                "%6d => \"%s\"\n",
+//                inp[j],
+//                common_token_to_piece(s.ctx, inp[j]).c_str());
+//        }
+//#endif //NDEBUG
 
         if(inp.back() != sep_tok && inp.back() != eos_tok)
         {
