@@ -1806,7 +1806,7 @@ MT_EXPORT_LLM_API void __stdcall mt_llm_deinit(int const slot_index)
     if(node == nullptr)
     {
         MT_LOG(
-            "Warning: Slot with index %d is not initialized, doing nothing.",
+            "Warning: Slot with index %d is not initialized, doing nothing.\n",
             slot_index);
         return; // Just do nothing.
     }
