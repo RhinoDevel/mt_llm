@@ -382,6 +382,7 @@ static const struct prompt_template s_gemma = { // <- Add this to "the" array.
 static char const * const s_model_names_gemma4[] = {
     "Gemma-4-E4B-It",
     "Gemma-4-31B-It",
+    "Gemma-4 12B IT (smart Q4_0, QAT-lossless)",
     // Add more, when necessary.
     NULL // <- DON'T FORGET THIS TERMINATING NULL ENTRY!
 };
@@ -389,7 +390,7 @@ static const struct prompt_template s_gemma4 = { // <- Add this to "the" array.
     .model_names = s_model_names_gemma4,
     .enable_thinking = false,
 
-    .sys_prompt_beg_delim = "<bos><|turn>system\n",
+    .sys_prompt_beg_delim = "<|turn>system\n",
     // System prompt will be put here.
     .sys_prompt_mid_delim = "<turn|>\n<|turn>user\n",
     // User's first prompt will be put here.
@@ -398,7 +399,10 @@ static const struct prompt_template s_gemma4 = { // <- Add this to "the" array.
     .prompt_beg_delim = "<|turn>user\n",
     .prompt_end_delim = "<turn|>\n<|turn>model\n",
 
-    .think_beg_delim = "<|channel>thought\n",
+    // TODO: This is not correct, just a workaround, see
+    // mt_llm/get_sampled_tok_type():
+    .think_beg_delim = "<|channel>",//"<|channel>thought\n",
+    
     .think_end_delim = "<channel|>",
 
     .n_sys_keep = -1 // Not supported (use create macro, if wanted).
