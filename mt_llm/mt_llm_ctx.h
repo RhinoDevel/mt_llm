@@ -14,6 +14,8 @@
 std::vector<llama_token> mt_llm_ctx_tokenize(
     llama_context const & ctx, char const * const str, bool const add_special);
 
+int mt_llm_ctx_get_tok_cnt(llama_context const & ctx);
+
 std::string mt_llm_ctx_get_piece_from(
     llama_context& ctx, llama_token const tok);
 

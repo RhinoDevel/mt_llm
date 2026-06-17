@@ -183,8 +183,7 @@ static int decode_as_many_tokens_as_possible(
     int const n_ctx = llama_n_ctx(ctx);
 
     assert( // TODO: We actually do not need existing-token-count parameter!
-        llama_memory_seq_pos_max(llama_get_memory(ctx), 0) + 1
-            == existing_token_count);
+        mt_llm_ctx_get_tok_cnt(*ctx) == existing_token_count);
 
     int const free_pos_count = n_ctx - existing_token_count;
 
@@ -295,6 +294,12 @@ static int decode_as_many_tokens_as_possible(
 
     // - Remember index of first 
 */
+
+int mt_llm_ctx_get_tok_cnt(llama_context const & ctx)
+{
+    return static_cast<int>(llama_memory_seq_pos_max(llama_get_memory(&ctx), 0))
+        + 1;
+}
 
 std::string mt_llm_ctx_get_piece_from(
     llama_context& ctx, llama_token const tok)
