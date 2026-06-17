@@ -143,6 +143,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
       <AdditionalDependencies>$(SolutionDir)mt_llm\llama.cpp\build-x64-windows-msvc-debug\src\llama.lib;$(SolutionDir)mt_llm\llama.cpp\build-x64-windows-msvc-debug\ggml\src\ggml.lib;$(SolutionDir)mt_llm\llama.cpp\build-x64-windows-msvc-debug\ggml\src\ggml-base.lib;$(SolutionDir)mt_llm\llama.cpp\build-x64-windows-msvc-debug\ggml\src\ggml-cpu.lib;$(SolutionDir)mt_llm\llama.cpp\build-x64-windows-msvc-debug\common\llama-common.lib;$(SolutionDir)mt_llm\llama.cpp\build-x64-windows-msvc-debug\common\llama-common-base.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <IgnoreSpecificDefaultLibraries>LIBCMT</IgnoreSpecificDefaultLibraries>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -165,6 +166,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
       <AdditionalDependencies>$(SolutionDir)mt_llm\llama.cpp\build-x64-windows-msvc-release\src\llama.lib;$(SolutionDir)mt_llm\llama.cpp\build-x64-windows-msvc-release\ggml\src\ggml.lib;$(SolutionDir)mt_llm\llama.cpp\build-x64-windows-msvc-release\ggml\src\ggml-base.lib;$(SolutionDir)mt_llm\llama.cpp\build-x64-windows-msvc-release\ggml\src\ggml-cpu.lib;$(SolutionDir)mt_llm\llama.cpp\build-x64-windows-msvc-release\common\llama-common.lib;$(SolutionDir)mt_llm\llama.cpp\build-x64-windows-msvc-release\common\llama-common-base.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <IgnoreSpecificDefaultLibraries>LIBCMT</IgnoreSpecificDefaultLibraries>
     </Link>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
