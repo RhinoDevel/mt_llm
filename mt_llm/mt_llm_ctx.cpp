@@ -247,33 +247,6 @@ static int decode_as_many_tokens_as_possible(
     return buf_tok_cnt;
 }
 
-/** Add given token to the context. Inform sampler about the new token.
- *
- * - Uses 1 as "batch" size.
- * - Never applies grammar.
- */
-static bool decode_single_token(
-    llama_context * const ctx,
-    llama_sampler * const sampler,
-    int const existing_token_count,
-    llama_token tok,
-    bool const output_logits)
-{
-    llama_batch b = llama_batch_init(1, 0, 1);
-
-    common_batch_add(b, tok, existing_token_count, { 0 }, output_logits);
-
-    if (llama_decode(ctx, b) != 0)
-    {
-        llama_batch_free(b);
-        MT_LOG_ERR("Decoding failed!\n");
-        return false;
-    }
-    llama_batch_free(b);
-    llama_sampler_accept(sampler, tok);
-    return true;
-}
-
 /*
     - Read this out from the GGUF file: tokenizer.ggml.add_bos_token
 
