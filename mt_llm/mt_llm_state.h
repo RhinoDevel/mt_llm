@@ -16,7 +16,6 @@
 struct mt_llm_state
 {
     int last_tok_type; // 0
-    int tok_cnt; // -1
 
     uint8_t* state; // nullptr
     size_t size; // 0

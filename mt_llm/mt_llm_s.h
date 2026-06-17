@@ -9,7 +9,6 @@
 struct mt_llm_s
 {
     int last_tok_type; // 0
-    int tok_cnt; // -1
     struct mt_llm_p * mt_p; // nullptr
     struct mt_llm_model * model; // nullptr
     struct llama_context * ctx; // nullptr

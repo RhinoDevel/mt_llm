@@ -124,21 +124,11 @@ MT_EXPORT_LLM_API bool mt_llm_snapshot_to_file(
 		return false;
 	}
 
-	bytes_to_write = sizeof state->tok_cnt;
-	items_written = fwrite(&(state->tok_cnt), bytes_to_write, 1, fp);
-	if(items_written != 1)
-	{
-		MT_LOG_ERR("Not all bytes were written (2)!\n");
-		fclose(fp);
-		fp = nullptr;
-		return false;
-	}
-
 	bytes_to_write = sizeof state->size;
 	items_written = fwrite(&(state->size), bytes_to_write, 1, fp);
 	if(items_written != 1)
 	{
-		MT_LOG_ERR("Not all bytes were written (3)!\n");
+		MT_LOG_ERR("Not all bytes were written (2)!\n");
 		fclose(fp);
 		fp = nullptr;
 		return false;
@@ -149,7 +139,7 @@ MT_EXPORT_LLM_API bool mt_llm_snapshot_to_file(
 	items_written = fwrite(state->state, 1, bytes_to_write, fp);
 	if(items_written != bytes_to_write)
 	{
-		MT_LOG_ERR("Not all bytes were written (4)!\n");
+		MT_LOG_ERR("Not all bytes were written (3)!\n");
 		fclose(fp);
 		fp = nullptr;
 		return false;
@@ -204,23 +194,11 @@ MT_EXPORT_LLM_API bool mt_llm_snapshot_from_file(
 		return false;
 	}
 
-	bytes_to_read = sizeof state->tok_cnt;
-	items_read = fread(&state->tok_cnt, bytes_to_read, 1, fp);
-	if(items_read != 1)
-	{
-		MT_LOG_ERR("Failed to read from file at \"%s\" (2)!\n", abs_file_path);
-		fclose(fp);
-		fp = nullptr;
-		free(state);
-		state = nullptr;
-		return false;
-	}
-
 	bytes_to_read = sizeof state->size;
 	items_read = fread(&state->size, bytes_to_read, 1, fp);
 	if(items_read != 1)
 	{
-		MT_LOG_ERR("Failed to read from file at \"%s\" (3)!\n", abs_file_path);
+		MT_LOG_ERR("Failed to read from file at \"%s\" (2)!\n", abs_file_path);
 		fclose(fp);
 		fp = nullptr;
 		free(state);
@@ -254,7 +232,7 @@ MT_EXPORT_LLM_API bool mt_llm_snapshot_from_file(
 	items_read = fread(state->state, 1, bytes_to_read, fp);
 	if(items_read != bytes_to_read)
 	{
-		MT_LOG_ERR("Failed to read from file at \"%s\" (4)!\n", abs_file_path);
+		MT_LOG_ERR("Failed to read from file at \"%s\" (3)!\n", abs_file_path);
 		fclose(fp);
 		fp = nullptr;
 		free(state->state);

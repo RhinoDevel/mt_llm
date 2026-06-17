@@ -162,7 +162,6 @@ static llama_context_params get_ctx_params(
 static int decode_as_many_tokens_as_possible(
     llama_context * const ctx,
     llama_sampler * const sampler,
-    int const existing_token_count,
     std::vector<llama_token>& tokens,
     bool const output_last_logits)
 {
@@ -181,12 +180,9 @@ static int decode_as_many_tokens_as_possible(
     buf = tokens;
 
     int const n_ctx = llama_n_ctx(ctx);
-
-    assert( // TODO: We actually do not need existing-token-count parameter!
-        mt_llm_ctx_get_tok_cnt(*ctx) == existing_token_count);
-
+    int const existing_token_count = mt_llm_ctx_get_tok_cnt(*ctx);
     int const free_pos_count = n_ctx - existing_token_count;
-
+    
     if(free_pos_count < full_token_count)
     {
         MT_LOG(
@@ -323,7 +319,7 @@ bool mt_llm_ctx_decode(
     llama_vocab const * const vocab =
         llama_model_get_vocab(llama_get_model(s.ctx));
 
-    if(s.tok_cnt == 0 && llama_vocab_get_add_bos(vocab))
+    if(mt_llm_ctx_get_tok_cnt(*s.ctx) == 0 && llama_vocab_get_add_bos(vocab))
     {
         // *** AUGMENTS ***
 
@@ -334,7 +330,7 @@ bool mt_llm_ctx_decode(
     int const tok_count = static_cast<int>(tokens.size());
 
     decoded_token_count = decode_as_many_tokens_as_possible(
-        s.ctx, s.sampler, s.tok_cnt, tokens, true);
+        s.ctx, s.sampler, tokens, true);
 
     if(decoded_token_count != tok_count)
     {

@@ -206,9 +206,6 @@ static bool callback_handler(
  *
  *  - "Decode" as in using the decoder of the LLM architecture to add to its
  *    context.
- *  - Slot's token count will hold the correct value on exit, even, if the
- *    decode failed (e.g. not all tokens could be decoded, because of full
- *    context).
  */
 static bool decode_tokens(
     std::vector<llama_token>& tokens,
@@ -234,7 +231,6 @@ static bool decode_tokens(
     // Works, because function called above insert a BOS token into the vector,
     // if necessary:
     assert(!ret_val || decoded_tok_cnt == static_cast<int>(tokens.size()));
-    s.tok_cnt += decoded_tok_cnt;
 
     if(!ret_val)
     {
@@ -247,9 +243,6 @@ static bool decode_tokens(
  * 
  *  - "Decode" as in using the decoder of the LLM architecture to add to its
  *    context.
- *  - Slot's token count will hold the correct value on exit, even, if the
- *    decode failed (e.g. not all tokens could be decoded, because of full
- *    context).
  */
 static bool decode_str(char const * const str, int const tok_type, mt_llm_s& s)
 {
@@ -659,7 +652,7 @@ static bool inference(mt_llm_s& s)
 {
     // For performance measurement:
     int64_t const t_main_start = ggml_time_us();
-    int const initial_tok_cnt = s.tok_cnt;
+    int const initial_tok_cnt = mt_llm_ctx_get_tok_cnt(*s.ctx);
 
     bool irq = false; // Callback sets this to true, if interrupt is requested.
     std::vector<float> dig_probs;
@@ -667,7 +660,7 @@ static bool inference(mt_llm_s& s)
     // Maximum count of tokens the context can hold.
     int const max_tok_cnt = get_max_token_count(s);
 
-    while(s.tok_cnt < max_tok_cnt)
+    while(mt_llm_ctx_get_tok_cnt(*s.ctx) < max_tok_cnt)
     {
         bool cur_irq = false;
         std::vector<llama_token> tokens;
@@ -726,7 +719,7 @@ static bool inference(mt_llm_s& s)
     {
         float const t_decode_seconds =
             static_cast<float>(ggml_time_us() - t_main_start) / 1000000.0f;
-        int const n_decode = s.tok_cnt - initial_tok_cnt;
+        int const n_decode = mt_llm_ctx_get_tok_cnt(*s.ctx) - initial_tok_cnt;
 
         MT_LOG(
             "Decoded %d tokens in %.2fs, speed: %.2f t/s.\n",
@@ -737,9 +730,9 @@ static bool inference(mt_llm_s& s)
 
     bool const lastTokTypeIsEog = s.last_tok_type == MT_TOK_TYPE_SAMPLED_EOG;
 
-    if(!lastTokTypeIsEog && max_tok_cnt <= s.tok_cnt)
+    if(!lastTokTypeIsEog && max_tok_cnt <= mt_llm_ctx_get_tok_cnt(*s.ctx))
     {
-        assert(max_tok_cnt == s.tok_cnt);
+        assert(max_tok_cnt == mt_llm_ctx_get_tok_cnt(*s.ctx));
         MT_LOG_ERR("Max. count of %d tokens reached (context is full)!\n", max_tok_cnt);
     }
 
@@ -934,8 +927,7 @@ MT_EXPORT_LLM_API struct mt_llm_state * __stdcall mt_llm_state_create(
 
     state->size = state_size;
     state->last_tok_type = s.last_tok_type;
-    state->tok_cnt = s.tok_cnt;
-    MT_LOG("Successfully created %zu state bytes from LLM memory (tok. count: %d, last tok. type: %d, slot index: %d).\n", state->size, state->tok_cnt, state->last_tok_type, slot_index);
+    MT_LOG("Successfully created %zu state bytes from LLM memory (last tok. type: %d, slot index: %d).\n", state->size, state->last_tok_type, slot_index);
     return state; // Caller takes ownership!
 }
 
@@ -968,8 +960,7 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_state_restore(
     }
 
     s.last_tok_type = state->last_tok_type;
-    s.tok_cnt = state->tok_cnt;
-    MT_LOG("Successfully restored %zu bytes from state to LLM memory (tok. count: %d, last tok. type: %d, slot index: %d).\n", state->size, state->tok_cnt, state->last_tok_type, slot_index);
+    MT_LOG("Successfully restored %zu bytes from state to LLM memory (last tok. type: %d, slot index: %d).\n", state->size, state->last_tok_type, slot_index);
     return true;
 }
 
@@ -1003,7 +994,7 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_decode_sys_prompt(
         MT_LOG_ERR("Thinking is enabled!\n");
         return false;
     }
-    if(s.tok_cnt != 0)
+    if(mt_llm_ctx_get_tok_cnt(*s.ctx) != 0)
     {
         MT_LOG_ERR("Token count is not zero!\n");
         return false;
@@ -1265,7 +1256,7 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_query(
     assert(s.ctx != nullptr);
     assert(s.sampler != nullptr);
     
-    if(s.tok_cnt == 0 && s.mt_p->sys_prompt[0] != '\0')
+    if(mt_llm_ctx_get_tok_cnt(*s.ctx) == 0 && s.mt_p->sys_prompt[0] != '\0')
     {
         // Although it would be no problem, just not intended this way.
         assert(!follow_up_decode_prompt_and_sys_prompt_end_delim);
@@ -1305,7 +1296,7 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_query(
         }
     }
 
-    MT_LOG("Token count: %d.\n", s.tok_cnt);
+    MT_LOG("Token count: %d.\n", mt_llm_ctx_get_tok_cnt(*s.ctx));
     return true;
 }
 
@@ -1787,7 +1778,6 @@ MT_EXPORT_LLM_API void __stdcall mt_llm_reset(
     llama_sampler_reset(s.sampler);
 
     s.last_tok_type = 0;
-    s.tok_cnt = 0;
 
     if(sys_prompt != NULL)
     {
@@ -2015,7 +2005,6 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_reinit(
     MT_LOG("System info: %s\n", llama_print_system_info());
 
     s->last_tok_type = 0;
-    s->tok_cnt = 0;
 
     if(llama_model_chat_template(s->model->model, nullptr) != nullptr)
     {
