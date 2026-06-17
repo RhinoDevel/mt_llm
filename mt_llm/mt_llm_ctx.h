@@ -23,7 +23,6 @@ std::string mt_llm_ctx_get_piece_from(
  * - Prepends BOS token, if existing token count is zero and model meta data
  *   says so. Given tokens vector will be AUGMENTED in this case!
  * - Decoded tokens counter will hold correct value on error, too.
- * - Uses 1 as "batch" size.
  * - Never applies grammar.
  */
 bool mt_llm_ctx_decode(

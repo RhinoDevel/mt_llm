@@ -32,9 +32,9 @@ static llama_context_params get_ctx_params(
     {
         ret_val.n_ctx = mt_p.n_ctx;
 
-        // Inference and decoding code is also written to use batch size of one:
-        ret_val.n_batch = 1; // Logical max. batch size.
-        ret_val.n_ubatch = 1; // Physical max. batch size.
+        // TODO: Add parameters for the batch sizes to mt_llm_p!
+        //ret_val.n_batch // Logical max. batch size.
+        //ret_val.n_ubatch // Physical max. batch size.
     }
     else
     {
@@ -151,6 +151,102 @@ static llama_context_params get_ctx_params(
     return ret_val;
 }
 
+/** Add as many tokens if given to the context as possible.
+ *  Inform sampler about the new token.
+ *
+ *  - Returns the count of tokens successfully added to the context.
+ *  - Returns -1 on error!
+ *  - Uses 
+ *  - Never applies grammar.
+ */
+static int decode_as_many_tokens_as_possible(
+    llama_context * const ctx,
+    llama_sampler * const sampler,
+    int const existing_token_count,
+    std::vector<llama_token>& tokens,
+    bool const output_last_logits)
+{
+    llama_batch batch;
+
+    // We want to work with a copy of the vector to keep the input as it is.
+    std::vector<llama_token> buf;
+
+    int const full_token_count = static_cast<int>(tokens.size());
+
+    if(full_token_count == 0)
+    {
+        return 0; // Nothing to do.
+    }
+
+    buf = tokens;
+
+    int const n_ctx = llama_n_ctx(ctx);
+
+    assert( // TODO: We actually do not need existing-token-count parameter!
+        llama_memory_seq_pos_max(llama_get_memory(ctx), 0) + 1
+            == existing_token_count);
+
+    int const free_pos_count = n_ctx - existing_token_count;
+
+    if(free_pos_count < full_token_count)
+    {
+        MT_LOG(
+            "Not enough free positions in context t decode %d tokens, trying to decode possible maximum of %d tokens..\n",
+            full_token_count,
+            free_pos_count);
+        buf.erase(buf.end() - full_token_count + free_pos_count, buf.end());
+    }
+
+    int const buf_tok_cnt = static_cast<int>(buf.size());
+
+    int const n_batch = static_cast<int>(llama_n_batch(ctx));
+
+    if(n_batch < buf_tok_cnt)
+    {
+        MT_LOG_ERR(
+            "To-be-decoded token count of %d exceeds max. token count per batch, which is %d (increase and re-run?)\n",
+            buf_tok_cnt,
+            n_batch);
+        return -1;
+    }
+
+    // Initialize a batch for the tokens to-be-decoded.
+    batch = llama_batch_init(buf_tok_cnt, 0, 1);
+
+    // Add all tokens to the batch. If wanted, configure the last token to get
+    // its logits output.
+    for(int i = 0; i < buf_tok_cnt; ++i)
+    {
+        common_batch_add(
+            batch,
+            buf[i],
+            existing_token_count + i, // <- The correct position.
+            { 0 }, // <- Always the same, single sequence zero.
+            output_last_logits && i + 1 == buf_tok_cnt);
+    }
+
+    // Try to fill the decoder with the tokens.
+    int const decode_result = llama_decode(ctx, batch);
+
+    // Free the batch.
+    llama_batch_free(batch);
+
+    if(decode_result != 0)
+    {
+        assert(false); // Should not get here.
+        MT_LOG_ERR("Decoding failed!\n");
+        return -1;
+    }
+
+    // Inform sampler about the added tokens.
+    for(int i = 0; i < buf_tok_cnt; ++i)
+    {
+        llama_sampler_accept(sampler, buf[i]);
+    }
+
+    return buf_tok_cnt;
+}
+
 /** Add given token to the context. Inform sampler about the new token.
  *
  * - Uses 1 as "batch" size.
@@ -259,22 +355,17 @@ bool mt_llm_ctx_decode(
 
     int const tok_count = static_cast<int>(tokens.size());
 
-    decoded_token_count = 0;
-    for(int i = 0; i < tok_count; ++i)
+    decoded_token_count = decode_as_many_tokens_as_possible(
+        s.ctx, s.sampler, s.tok_cnt, tokens, true);
+
+    if(decoded_token_count != tok_count)
     {
-        if(!decode_single_token(
-                s.ctx,
-                s.sampler,
-                s.tok_cnt + i,
-                tokens[i],
-                i + 1 == tok_count))
-        {
-            return false; // (called function logged)
-        }
+        return false; // (called function logged)
+    }
 
-        ++decoded_token_count;
-
-        if(callback != nullptr)
+    if(callback != nullptr)
+    {
+        for(int i = 0; i < tok_count; ++i)
         {
             irq = callback(
                 tokens[i],
@@ -283,7 +374,7 @@ bool mt_llm_ctx_decode(
                 s);
         }
     }
-    assert(decoded_token_count == tok_count);
+
     return true;
 }
 
