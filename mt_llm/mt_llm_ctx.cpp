@@ -29,7 +29,7 @@ static llama_context_params get_ctx_params(
 
     ret_val.n_seq_max = 1; // Max. number of sequences.
 
-    ret_val.flash_attn_type = LLAMA_FLASH_ATTN_TYPE_DISABLED;
+    ret_val.flash_attn_type = LLAMA_FLASH_ATTN_TYPE_AUTO; // (autom. is default)
 
     if(mt_p.emb_or_rerank == 0)
     {
