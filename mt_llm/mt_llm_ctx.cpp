@@ -19,6 +19,9 @@ static llama_context_params get_ctx_params(
 {
     llama_context_params ret_val = llama_context_default_params();
 
+    ret_val.n_batch = mt_p.n_batch; // Logical max. batch size.
+    ret_val.n_ubatch = mt_p.n_ubatch; // Physical max. batch size.
+
     //mt_p.seed; // Used for the sampler somewhere else.
     assert(0 < mt_p.threads);
     ret_val.n_threads = mt_p.threads;
@@ -31,10 +34,6 @@ static llama_context_params get_ctx_params(
     if(mt_p.emb_or_rerank == 0)
     {
         ret_val.n_ctx = mt_p.n_ctx;
-
-        // TODO: Add parameters for the batch sizes to mt_llm_p!
-        //ret_val.n_batch // Logical max. batch size.
-        //ret_val.n_ubatch // Physical max. batch size.
     }
     else
     {
@@ -77,12 +76,16 @@ static llama_context_params get_ctx_params(
                 ret_val.n_ctx = mt_p.n_ctx;
             }
         }
-        // Assuming that these maximum batch sizes are OK for the hardware..
-        ret_val.n_batch = ret_val.n_ctx; // Logical max. batch size.
-        ret_val.n_ubatch = ret_val.n_ctx; // Physical max. batch size.
-
+        
         // Required for non-causal models:
-        assert(ret_val.n_batch == ret_val.n_ubatch);
+        if(ret_val.n_batch != ret_val.n_ubatch)
+        {
+            MT_LOG("Warning: Logical and physical batch sizes must be equal for non-causal models, ignoring given values and settings both to context size of %d..\n", static_cast<int>(ret_val.n_ctx));
+
+            // Assuming that these maximum batch sizes are OK for the hardware..
+            ret_val.n_batch = ret_val.n_ctx; // Logical max. batch size.
+            ret_val.n_ubatch = ret_val.n_ctx; // Physical max. batch size.
+        }
 
         // We are trying to use the default pooling type of the model, if known:
 

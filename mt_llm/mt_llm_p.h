@@ -40,6 +40,8 @@ struct mt_llm_p
     // ****************************
 
     uint32_t n_ctx; // 0 = Use context size of model.
+    uint32_t n_batch; // Logical maximum batch size for "decoding".
+    uint32_t n_ubatch; // Physical maximum batch size.
     uint32_t threads; // Number of threads to use for inference
                       // (0 = system-dependent).
     uint8_t emb_or_rerank; // 0 = Neither embedding, nor reranking usage.

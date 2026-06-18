@@ -14,6 +14,8 @@ void mt_llm_p_print(struct mt_llm_p const & mt_p)
     MT_LOG("n_gpu_layers" ": " "%d" "\n", mt_p.n_gpu_layers);
 
     MT_LOG("n_ctx" ": " "%u" "\n", mt_p.n_ctx);
+    MT_LOG("n_batch" ": " "%u" "\n", mt_p.n_batch);
+    MT_LOG("n_ubatch" ": " "%u" "\n", mt_p.n_ubatch);
     MT_LOG("threads" ": " "%u" "\n", mt_p.threads);
     MT_LOG("emb_or_rerank" ": " "%u" "\n", mt_p.emb_or_rerank);
 
@@ -72,6 +74,14 @@ bool mt_llm_p_are_equal(
     }
 
     if(a.n_ctx != b.n_ctx)
+    {
+        return false;
+    }
+    if(a.n_batch != b.n_batch)
+    {
+        return false;
+    }
+    if(a.n_ubatch != b.n_ubatch)
     {
         return false;
     }
@@ -216,6 +226,8 @@ struct mt_llm_p * mt_llm_p_create_copy(struct mt_llm_p const & mt_p)
     copy->n_gpu_layers = mt_p.n_gpu_layers;
 
     copy->n_ctx = mt_p.n_ctx;
+    copy->n_batch = mt_p.n_batch;
+    copy->n_ubatch = mt_p.n_ubatch;
     copy->threads = mt_p.threads;
     copy->emb_or_rerank = mt_p.emb_or_rerank;
 

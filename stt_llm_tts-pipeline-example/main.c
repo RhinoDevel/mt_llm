@@ -172,6 +172,8 @@ int main(void)
     p.n_gpu_layers = 0;
     
     p.n_ctx = 2048;
+    p.n_batch = 2048;
+    p.n_ubatch = 512;
     p.threads = 0;
     p.emb_or_rerank = 0;
     
