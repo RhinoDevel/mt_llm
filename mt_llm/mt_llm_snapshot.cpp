@@ -43,7 +43,7 @@ static void slot_update(mt_llm_state * const state, int const slot_index)
 	slot->index = slot_index;
 
 	s_snapshots = mt_llm_node_add(s_snapshots, slot);
-	MT_LOG("Slot at index %d was updated with given state.", slot_index);
+	MT_LOG("Slot at index %d was updated with given state.\n", slot_index);
 }
 
 MT_EXPORT_LLM_API void __stdcall mt_llm_snapshot_clear(int const slot_index)
