@@ -169,6 +169,7 @@ static int decode_as_many_tokens_as_possible(
     bool const output_last_logits)
 {
     llama_batch batch;
+    int pos = 0;
 
     // We want to work with a copy of the vector to keep the input as it is.
     std::vector<llama_token> buf;
@@ -197,51 +198,56 @@ static int decode_as_many_tokens_as_possible(
 
     int const buf_tok_cnt = static_cast<int>(buf.size());
 
+    // The maximum logical token count to put into the decoder at once.
     int const n_batch = static_cast<int>(llama_n_batch(ctx));
 
-    if(n_batch < buf_tok_cnt)
+    assert(pos == 0);
+    while(pos < buf_tok_cnt)
     {
-        MT_LOG_ERR(
-            "To-be-decoded token count of %d exceeds max. token count per batch, which is %d (increase and re-run?)\n",
-            buf_tok_cnt,
-            n_batch);
-        return -1;
+        int const left_tok_cnt = buf_tok_cnt - pos;
+        int const decode_cnt = left_tok_cnt < n_batch ? left_tok_cnt : n_batch;
+
+        // Initialize a batch for the tokens to-be-decoded.
+        batch = llama_batch_init(decode_cnt, 0, 1);
+
+        // Add the tokens to the batch. If wanted, configure the last token to
+        // get its logits output.
+        for(int i = 0; i < decode_cnt; ++i)
+        {
+            int const buf_i = pos + i; // The token position in the full vector.
+
+            common_batch_add(
+                batch,
+                buf[buf_i],
+                existing_token_count + buf_i, // <- The correct position.
+                { 0 }, // <- Always the same, single sequence zero.
+                output_last_logits && buf_i + 1 == buf_tok_cnt);
+        }
+
+        // Try to fill the decoder with the tokens.
+        int const decode_result = llama_decode(ctx, batch);
+
+        // Free the batch.
+        llama_batch_free(batch);
+
+        if(decode_result != 0)
+        {
+            assert(false); // Should not get here.
+            MT_LOG_ERR("Decoding failed (position %d)!\n", pos);
+            return -1;
+        }
+
+        // Inform sampler about the added tokens.
+        for(int i = 0; i < decode_cnt; ++i)
+        {
+            int const buf_i = pos + i; // The token position in the buffer.
+
+            llama_sampler_accept(sampler, buf_i);
+        }
+
+        pos += decode_cnt;
     }
-
-    // Initialize a batch for the tokens to-be-decoded.
-    batch = llama_batch_init(buf_tok_cnt, 0, 1);
-
-    // Add all tokens to the batch. If wanted, configure the last token to get
-    // its logits output.
-    for(int i = 0; i < buf_tok_cnt; ++i)
-    {
-        common_batch_add(
-            batch,
-            buf[i],
-            existing_token_count + i, // <- The correct position.
-            { 0 }, // <- Always the same, single sequence zero.
-            output_last_logits && i + 1 == buf_tok_cnt);
-    }
-
-    // Try to fill the decoder with the tokens.
-    int const decode_result = llama_decode(ctx, batch);
-
-    // Free the batch.
-    llama_batch_free(batch);
-
-    if(decode_result != 0)
-    {
-        assert(false); // Should not get here.
-        MT_LOG_ERR("Decoding failed!\n");
-        return -1;
-    }
-
-    // Inform sampler about the added tokens.
-    for(int i = 0; i < buf_tok_cnt; ++i)
-    {
-        llama_sampler_accept(sampler, buf[i]);
-    }
-
+    assert(pos == buf_tok_cnt);
     return buf_tok_cnt;
 }
 
