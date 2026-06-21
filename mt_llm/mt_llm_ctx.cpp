@@ -31,6 +31,10 @@ static llama_context_params get_ctx_params(
 
     ret_val.flash_attn_type = LLAMA_FLASH_ATTN_TYPE_AUTO; // (autom. is default)
 
+    // This is the default in llama-server (and because of that, also of
+    // llama-cli). With full SWA, more memory is necessary.
+    ret_val.swa_full = false;
+
     assert(ret_val.type_k == GGML_TYPE_F16);
     assert(ret_val.type_v == GGML_TYPE_F16);
     if(mt_p.type_kv_q8_0 != 0)
@@ -41,12 +45,16 @@ static llama_context_params get_ctx_params(
 
     if(mt_p.emb_or_rerank == 0)
     {
+        ret_val.n_outputs_max = 1; // Output for last token in batch, only.
+
         ret_val.n_ctx = mt_p.n_ctx;
     }
     else
     {
         // Extract embeddings (together with logits). Correct for rerank., too.
         ret_val.embeddings = true;
+
+        assert(ret_val.n_outputs_max == 0); // Default: Full batch token count.
 
         // If we wanted to process multiple sequences at once, we should make
         // use of the parameters .kv_unified and/or .n_parallel, too (see
