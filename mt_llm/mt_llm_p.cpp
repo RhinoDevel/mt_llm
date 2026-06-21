@@ -17,6 +17,7 @@ void mt_llm_p_print(struct mt_llm_p const & mt_p)
     MT_LOG("n_batch" ": " "%u" "\n", mt_p.n_batch);
     MT_LOG("n_ubatch" ": " "%u" "\n", mt_p.n_ubatch);
     MT_LOG("threads" ": " "%u" "\n", mt_p.threads);
+    MT_LOG("type_kv_q8_0" ": " "%u" "\n", mt_p.type_kv_q8_0);
     MT_LOG("emb_or_rerank" ": " "%u" "\n", mt_p.emb_or_rerank);
 
     MT_LOG("seed" ": "  "%u" "\n", mt_p.seed);
@@ -86,6 +87,10 @@ bool mt_llm_p_are_equal(
         return false;
     }
     if(a.threads != b.threads)
+    {
+        return false;
+    }
+    if(a.type_kv_q8_0 != b.type_kv_q8_0)
     {
         return false;
     }
@@ -229,6 +234,7 @@ struct mt_llm_p * mt_llm_p_create_copy(struct mt_llm_p const & mt_p)
     copy->n_batch = mt_p.n_batch;
     copy->n_ubatch = mt_p.n_ubatch;
     copy->threads = mt_p.threads;
+    copy->type_kv_q8_0 = mt_p.type_kv_q8_0;
     copy->emb_or_rerank = mt_p.emb_or_rerank;
 
     copy->seed = mt_p.seed;

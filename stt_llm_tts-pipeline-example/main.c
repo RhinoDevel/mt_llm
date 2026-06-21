@@ -175,6 +175,7 @@ int main(void)
     p.n_batch = 2048;
     p.n_ubatch = 512;
     p.threads = 0;
+    p.type_kv_q8_0 = 0;
     p.emb_or_rerank = 0;
     
     p.seed = -1;

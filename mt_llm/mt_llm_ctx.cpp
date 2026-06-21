@@ -31,6 +31,14 @@ static llama_context_params get_ctx_params(
 
     ret_val.flash_attn_type = LLAMA_FLASH_ATTN_TYPE_AUTO; // (autom. is default)
 
+    assert(ret_val.type_k == GGML_TYPE_F16);
+    assert(ret_val.type_v == GGML_TYPE_F16);
+    if(mt_p.type_kv_q8_0 != 0)
+    {
+        ret_val.type_k = GGML_TYPE_Q8_0;
+        ret_val.type_v = GGML_TYPE_Q8_0;
+    }
+
     if(mt_p.emb_or_rerank == 0)
     {
         ret_val.n_ctx = mt_p.n_ctx;

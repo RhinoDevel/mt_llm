@@ -44,6 +44,8 @@ struct mt_llm_p
     uint32_t n_ubatch; // Physical maximum batch size.
     uint32_t threads; // Number of threads to use for inference
                       // (0 = system-dependent).
+    uint8_t type_kv_q8_0; // 0 = Use default KV cache data type (f16), any other
+                          // value leads to using data type Q8_0 for K and V.
     uint8_t emb_or_rerank; // 0 = Neither embedding, nor reranking usage.
                            // 1 = Extract embeddings (together with logits).
                            // 2 = Configure for reranking usage.
