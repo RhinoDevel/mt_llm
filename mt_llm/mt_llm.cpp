@@ -1386,15 +1386,15 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_create_embeddings(
 
     //MT_LOG("Number of tokens in prompt: %zu\n", inp.size());
 
-#ifndef NDEBUG
-    for(int i = 0; i < static_cast<int>(inp.size()); ++i)
-    {
-        MT_LOG(
-            "%6d => \"%s\"\n",
-            inp[i],
-            common_token_to_piece(s.ctx, inp[i]).c_str());
-    }
-#endif //NDEBUG
+//#ifndef NDEBUG
+//    for(int i = 0; i < static_cast<int>(inp.size()); ++i)
+//    {
+//        MT_LOG(
+//            "%6d => \"%s\"\n",
+//            inp[i],
+//            common_token_to_piece(s.ctx, inp[i]).c_str());
+//    }
+//#endif //NDEBUG
 
     if(n_ctx < static_cast<int>(inp.size()))
     {
@@ -1750,9 +1750,16 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_rerank(
 }
 
 MT_EXPORT_LLM_API void __stdcall mt_llm_reset(
-    char const * const sys_prompt, int const slot_index)
+    char const * const sys_prompt,
+    int const * const top_k,
+    float const * const top_p,
+    float const * const min_p,
+    float const * const temp,
+    char const * const grammar,
+    int const slot_index)
 {
     mt_llm_node * const node = mt_llm_node_find(s_slots, slot_index);
+    bool reinit_sampler = false;
 
     if(node == nullptr)
     {
@@ -1775,8 +1782,6 @@ MT_EXPORT_LLM_API void __stdcall mt_llm_reset(
 
     clear_llama_memory(s.ctx);
 
-    llama_sampler_reset(s.sampler);
-
     s.last_tok_type = 0;
 
     if(sys_prompt != NULL)
@@ -1785,6 +1790,52 @@ MT_EXPORT_LLM_API void __stdcall mt_llm_reset(
         s.mt_p->sys_prompt[MT_LLM_P_LEN_SYS_PROMPT - 1] = '\0';
 
         MT_LOG("sys_prompt" ": " "\"%s\"" "\n", s.mt_p->sys_prompt);
+    }
+
+    if(top_k != nullptr)
+    {
+        reinit_sampler = true;
+        s.mt_p->top_k = static_cast<int32_t>(*top_k);
+        MT_LOG("top_k" ": " "\"%d\"" "\n", s.mt_p->top_k);
+    }
+    if(top_p != nullptr)
+    {
+        reinit_sampler = true;
+        s.mt_p->top_p = *top_p;
+        MT_LOG("top_p" ": " "\"%f\"" "\n", s.mt_p->top_p);
+    }
+    if(min_p != nullptr)
+    {
+        reinit_sampler = true;
+        s.mt_p->min_p = *min_p;
+        MT_LOG("min_p" ": " "\"%f\"" "\n", s.mt_p->min_p);
+    }
+    if(temp != nullptr)
+    {
+        reinit_sampler = true;
+        s.mt_p->temp = *temp;
+        MT_LOG("temp" ": " "\"%f\"" "\n", s.mt_p->temp);
+    }
+    if(grammar != NULL)
+    {
+        reinit_sampler = true;
+        strncpy(s.mt_p->grammar, grammar, MT_LLM_P_LEN_GRAMMAR - 1);
+        s.mt_p->grammar[MT_LLM_P_LEN_GRAMMAR - 1] = '\0';
+        MT_LOG("grammar" ": " "\"%s\"" "\n", s.mt_p->grammar);
+    }
+
+    if(reinit_sampler)
+    {
+        llama_sampler_free(s.sampler);
+        
+        // Initialize the sampling (unnecessary for embeddings creation and
+        // reranking usage):
+        s.sampler = create_sampler(
+            llama_model_get_vocab(s.model->model), *s.mt_p);
+    }
+    else
+    {
+        llama_sampler_reset(s.sampler);
     }
 }
 
@@ -1861,10 +1912,17 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_reinit(
     {
         s = static_cast<mt_llm_s*>(node->data);
 
-        if(mt_llm_p_are_equal(*mt_p, *s->mt_p, true, false))
+        if(mt_llm_p_are_equal(*mt_p, *s->mt_p, true))
         {
             MT_LOG("Doing reset, only..");
-            mt_llm_reset(mt_p->sys_prompt, slot_index);
+            mt_llm_reset(
+                mt_p->sys_prompt,
+                &mt_p->top_k,
+                &mt_p->top_p,
+                &mt_p->min_p,
+                &mt_p->temp,
+                mt_p->grammar,
+                slot_index);
             return true;
         }
         mt_llm_deinit(slot_index);

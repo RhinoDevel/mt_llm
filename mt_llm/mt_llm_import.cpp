@@ -42,8 +42,9 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_import(
         }
     }
 
-    // (not updating configured system prompt, here)
-    mt_llm_reset(nullptr, slot_index);
+    // (not updating configured system prompt or sampling params. here)
+    mt_llm_reset(
+        nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, slot_index);
 
     i = 0;
     if(!mt_llm_decode_sys_prompt(messages[i], slot_index))

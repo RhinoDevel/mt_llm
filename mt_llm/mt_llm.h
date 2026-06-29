@@ -144,12 +144,18 @@ MT_EXPORT_LLM_API float* __stdcall mt_llm_rerank(
     int const slot_index);
 
 /** Reset state, as if the model just got loaded. Optionally update system
- *  prompt.
+ *  prompt and/or sampling parameters.
  *
  * - Does nothing, if singleton or slot is not initialized.
  */
 MT_EXPORT_LLM_API void __stdcall mt_llm_reset(
-    char const * const sys_prompt, int const slot_index);
+    char const * const sys_prompt,
+    int const * const top_k,
+    float const * const top_p,
+    float const * const min_p,
+    float const * const temp,
+    char const * const grammar,
+    int const slot_index);
 
 /**
  * - Does no harm, if not initialized.
@@ -160,6 +166,7 @@ MT_EXPORT_LLM_API void __stdcall mt_llm_deinit(int const slot_index);
 /**
  * - Only calls mt_llm_reset() instead of full re-initialization, if possible.
  * - De-initializes first, if already initialized.
+ * - Given mt_p can be freed after this function returned.
  */
 MT_EXPORT_LLM_API bool __stdcall mt_llm_reinit(
     struct mt_llm_p const * const mt_p, int const slot_index);

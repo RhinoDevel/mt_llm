@@ -66,8 +66,7 @@ void mt_llm_p_free(struct mt_llm_p * const mt_p)
 bool mt_llm_p_are_equal(
     struct mt_llm_p const & a,
     struct mt_llm_p const & b, 
-    bool const skip_sys_prompt,
-    bool const skip_callback)
+    bool const skip_resettable)
 {
     if(a.n_gpu_layers != b.n_gpu_layers)
     {
@@ -103,25 +102,29 @@ bool mt_llm_p_are_equal(
     {
         return false;
     }
-    if(a.top_k != b.top_k)
+
+    if(!skip_resettable)
     {
-        return false;
-    }
-    if(a.top_p != b.top_p)
-    {
-        return false;
-    }
-    if(a.min_p != b.min_p)
-    {
-        return false;
-    }
-    if(a.temp != b.temp)
-    {
-        return false;
-    }
-    if(strncmp(a.grammar, b.grammar, MT_LLM_P_LEN_GRAMMAR) != 0)
-    {
-        return false;
+        if(a.top_k != b.top_k)
+        {
+            return false;
+        }
+        if(a.top_p != b.top_p)
+        {
+            return false;
+        }
+        if(a.min_p != b.min_p)
+        {
+            return false;
+        }
+        if(a.temp != b.temp)
+        {
+            return false;
+        }
+        if(strncmp(a.grammar, b.grammar, MT_LLM_P_LEN_GRAMMAR) != 0)
+        {
+            return false;
+        }
     }
 
     if((a.cpu_moe == 0) != (b.cpu_moe == 0))
@@ -138,13 +141,15 @@ bool mt_llm_p_are_equal(
     {
         return false;
     }
-    if(!skip_sys_prompt)
+
+    if(!skip_resettable)
     {
         if(strncmp(a.sys_prompt, b.sys_prompt, MT_LLM_P_LEN_SYS_PROMPT) != 0)
         {
             return false;
         }
     }
+
     if(strncmp(
         a.prompt_beg_delim, b.prompt_beg_delim, MT_LLM_P_LEN_PROMPT_BEG_DELIM)
             != 0)
@@ -206,12 +211,9 @@ bool mt_llm_p_are_equal(
         return false;
     }
 
-    if(!skip_callback)
+    if(a.callback != b.callback)
     {
-        if(a.callback != b.callback)
-        {
-            return false;
-        }
+        return false;
     }
 
     return true;

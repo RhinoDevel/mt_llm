@@ -113,17 +113,13 @@ void mt_llm_p_print(struct mt_llm_p const & mt_p);
 void mt_llm_p_free(struct mt_llm_p * const mt_p);
 
 /**
- * - If skip_callback is true, the function will return true, even if the
- *   callback function pointers are different. If skip_callback is false, the
- *   addresses of (the pointers to) the callback function will be compared.
  * - Compares uint8_t properties representing boolean values by
  *   (x == 0) != (y == 0).
  */
 bool mt_llm_p_are_equal(
     struct mt_llm_p const & a,
     struct mt_llm_p const & b,
-    bool const skip_sys_prompt,
-    bool const skip_callback);
+    bool const skip_resettable);
 
 /** Deep-copies given object.
  * 
