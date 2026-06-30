@@ -36,6 +36,12 @@ MT_EXPORT_LLM_API int __stdcall mt_llm_get_max_token_count(
 
 /**
  * - Returns -1, if slot is not initialized.
+ */
+MT_EXPORT_LLM_API int __stdcall mt_llm_get_current_token_count(
+    int const slot_index);
+
+/**
+ * - Returns -1, if slot is not initialized.
  * - Returns -2, if NULL given.
  * - Returns -4, if configured to create embeddings or for reranking usage.
  */

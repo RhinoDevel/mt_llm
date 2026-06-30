@@ -843,6 +843,21 @@ MT_EXPORT_LLM_API int __stdcall mt_llm_get_max_token_count(int const slot_index)
     return get_max_token_count(*static_cast<mt_llm_s*>(node->data));
 }
 
+MT_EXPORT_LLM_API int __stdcall mt_llm_get_current_token_count(
+    int const slot_index)
+{
+    mt_llm_node * const node = mt_llm_node_find(s_slots, slot_index);
+
+    if(node == nullptr)
+    {
+        MT_LOG_ERR("Slot with index %d is not intialized!\n", slot_index);
+        return -1;
+    }
+    assert(node->data != nullptr);
+
+    return mt_llm_ctx_get_tok_cnt(*static_cast<mt_llm_s*>(node->data)->ctx);
+}
+
 MT_EXPORT_LLM_API int mt_llm_get_token_count(
     char const * const text, bool const add_special, int const slot_index)
 {
