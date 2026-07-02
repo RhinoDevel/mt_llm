@@ -269,7 +269,7 @@ static const struct prompt_template s_qwen3 = // <- Add this to "the" array.
     .sys_prompt_mid_delim = "<|im_end|>\n" "<|im_start|>" "user\n",
     .sys_prompt_end_delim = "<|im_end|>\n" "<|im_start|>" "assistant" "\n" "<think>" "\n" "\n" "</think>" "\n" "\n",
 
-    .prompt_beg_delim = "<|im_start|>" "user\n",
+    .prompt_beg_delim = "\n<|im_start|>" "user\n",
     .prompt_end_delim = "<|im_end|>\n" "<|im_start|>" "assistant" "\n" "<think>" "\n" "\n" "</think>" "\n" "\n",
 
     .think_beg_delim = "<think>",
