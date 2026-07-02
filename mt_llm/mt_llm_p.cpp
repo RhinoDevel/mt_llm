@@ -150,58 +150,73 @@ bool mt_llm_p_are_equal(
         }
     }
 
-    if(strncmp(
-        a.prompt_beg_delim, b.prompt_beg_delim, MT_LLM_P_LEN_PROMPT_BEG_DELIM)
-            != 0)
-    {
-        return false;
-    }
-    if(strncmp(
-        a.prompt_end_delim, b.prompt_end_delim, MT_LLM_P_LEN_PROMPT_END_DELIM)
-            != 0)
-    {
-        return false;
-    }
-    if(strncmp(
-        a.sys_prompt_beg_delim,
-        b.sys_prompt_beg_delim,
-        MT_LLM_P_LEN_SYS_PROMPT_BEG_DELIM)
-            != 0)
-    {
-        return false;
-    }
-    if(strncmp(
-        a.sys_prompt_mid_delim,
-        b.sys_prompt_mid_delim,
-        MT_LLM_P_LEN_SYS_PROMPT_MID_DELIM)
-            != 0)
-    {
-        return false;
-    }
-    if(strncmp(
-        a.sys_prompt_end_delim,
-        b.sys_prompt_end_delim,
-        MT_LLM_P_LEN_SYS_PROMPT_END_DELIM)
-            != 0)
-    {
-        return false;
-    }
-    if(strncmp(
-        a.think_beg_delim, b.think_beg_delim, MT_LLM_P_LEN_THINK_BEG_DELIM)
-            != 0)
-    {
-        return false;
-    }
-    if(strncmp(
-        a.think_end_delim, b.think_end_delim, MT_LLM_P_LEN_THINK_END_DELIM)
-            != 0)
-    {
-        return false;
-    }
     if((a.try_prompts_by_model == 0) != (b.try_prompts_by_model == 0))
     {
         return false;
     }
+
+    // If resettables shall be skipped and both configurations have
+    // try-prompts-by-model enabled, we can safely skip these
+    // (because an already used configuration has these templates set, but the
+    // unused other configuration not).
+    if(!skip_resettable
+        || a.try_prompts_by_model == 0
+        || b.try_prompts_by_model == 0)
+    {
+        if(strncmp(
+            a.prompt_beg_delim,
+            b.prompt_beg_delim,
+            MT_LLM_P_LEN_PROMPT_BEG_DELIM)
+                != 0)
+        {
+            return false;
+        }
+        if(strncmp(
+            a.prompt_end_delim,
+            b.prompt_end_delim,
+            MT_LLM_P_LEN_PROMPT_END_DELIM)
+                != 0)
+        {
+            return false;
+        }
+        if(strncmp(
+            a.sys_prompt_beg_delim,
+            b.sys_prompt_beg_delim,
+            MT_LLM_P_LEN_SYS_PROMPT_BEG_DELIM)
+                != 0)
+        {
+            return false;
+        }
+        if(strncmp(
+            a.sys_prompt_mid_delim,
+            b.sys_prompt_mid_delim,
+            MT_LLM_P_LEN_SYS_PROMPT_MID_DELIM)
+                != 0)
+        {
+            return false;
+        }
+        if(strncmp(
+            a.sys_prompt_end_delim,
+            b.sys_prompt_end_delim,
+            MT_LLM_P_LEN_SYS_PROMPT_END_DELIM)
+                != 0)
+        {
+            return false;
+        }
+        if(strncmp(
+            a.think_beg_delim, b.think_beg_delim, MT_LLM_P_LEN_THINK_BEG_DELIM)
+                != 0)
+        {
+            return false;
+        }
+        if(strncmp(
+            a.think_end_delim, b.think_end_delim, MT_LLM_P_LEN_THINK_END_DELIM)
+                != 0)
+        {
+            return false;
+        }
+    }
+
     if((a.enable_thinking == 0) != (b.enable_thinking == 0))
     {
         return false;
