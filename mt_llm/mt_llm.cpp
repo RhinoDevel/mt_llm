@@ -1059,6 +1059,34 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_decode_sys_prompt(
     return true;
 }
 
+MT_EXPORT_LLM_API bool __stdcall mt_llm_decode_prompt_beg_delim(
+    int const slot_index)
+{
+    mt_llm_node * const node = mt_llm_node_find(s_slots, slot_index);
+
+    if(node == nullptr)
+    {
+        MT_LOG_ERR("Slot with index %d is not intialized!\n", slot_index);
+        return false;
+    }
+    assert(node->data != nullptr);
+
+    mt_llm_s& s = *static_cast<mt_llm_s*>(node->data);
+
+    if(s.mt_p->emb_or_rerank != 0)
+    {
+        MT_LOG_ERR("Configured for embeddings creation or reranking usage!\n");
+        return false;
+    }
+
+    if(!decode_str(s.mt_p->prompt_beg_delim, MT_TOK_TYPE_DELIM, s))
+    {
+        MT_LOG_ERR("Decoding prompt begin delimiter!\n");
+        return false;
+    }
+    return true;
+}
+
 MT_EXPORT_LLM_API bool __stdcall mt_llm_decode_response(
     char const * const response,
     int const slot_index,

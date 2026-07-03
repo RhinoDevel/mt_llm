@@ -96,6 +96,13 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_decode_sys_prompt(
 MT_EXPORT_LLM_API bool __stdcall mt_llm_decode_request(
     char const * const request, int const slot_index, bool const is_first);
 
+/**
+ *  - Returns false and does nothing, if not initialized or invalid slot index
+ *    or configured for embeddings creation or reranking.
+ */
+MT_EXPORT_LLM_API bool __stdcall mt_llm_decode_prompt_beg_delim(
+    int const slot_index);
+
 /** Add ("decode") given text to the context, as if it were a response generated
  *  by the model.
  * 
