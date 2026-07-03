@@ -19,9 +19,11 @@ extern "C" {
 #endif //__cplusplus
 
 /**
- *  - First message given will always be interpreted as the system prompt,
- *    second message as first user prompt, third message as first LLM response
- *    and so on.
+ *  - If message count is odd, first message given will be interpreted as the
+ *    system prompt, the second message as first user prompt, the third message
+ *    as first LLM response and so on.
+ *  - If message count is even, first message given will be interpreted as first
+ *    user prompt to import, the second message as LLM response and so on.
  *  - Always starts import at the beginning of the context.
  */
 MT_EXPORT_LLM_API bool __stdcall mt_llm_import(
