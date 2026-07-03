@@ -19,6 +19,9 @@ to the awesome large-language model inference engine called
 - Snapshot interface to store/update/reset the current LLM state (using RAM).
 - Let the callback retrieve the probabilities of the digits 0 to 9 being the
   next inferred token while ignoring sampling (e.g. for categorization).
+- Insert full chats (incl. system prompt) or additional user & LLM message pairs
+  into the context, while **mt_llm** handles the prompt templates, etc.
+  automatically.
 
 ## STT -> LLM -> TTS pipeline example in C
 
