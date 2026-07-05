@@ -42,13 +42,13 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_import(
         }
     }
 
-    // (not updating configured system prompt or sampling params. here)
-    mt_llm_reset(
-        nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, slot_index);
-
     if(msg_cnt % 2 == 1)
     {
         // Odd message count. <=> First message must be the system prompt.
+
+        // (not updating CONFIGURED system prompt or sampling params. here)
+        mt_llm_reset(
+            nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, slot_index);
 
         i = 0;
         if(!mt_llm_decode_sys_prompt(messages[i], slot_index))
@@ -79,7 +79,8 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_import(
         return true;
     }
 
-    // Even message count. <=> User and assistant message pairs, only.
+    // Even message count. <=> User and assistant message pairs, only, without
+    // a context reset.
 
     for(i = 0; i < msg_cnt; ++i)
     {

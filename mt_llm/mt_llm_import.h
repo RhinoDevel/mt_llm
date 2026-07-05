@@ -22,9 +22,11 @@ extern "C" {
  *  - If message count is odd, first message given will be interpreted as the
  *    system prompt, the second message as first user prompt, the third message
  *    as first LLM response and so on.
+ *    In this case, always starts import at the beginning of the context (via
+ *    a reset).
  *  - If message count is even, first message given will be interpreted as first
  *    user prompt to import, the second message as LLM response and so on.
- *  - Always starts import at the beginning of the context.
+ *    No reset will be done before import, then.
  */
 MT_EXPORT_LLM_API bool __stdcall mt_llm_import(
 	char const * const * const messages,
