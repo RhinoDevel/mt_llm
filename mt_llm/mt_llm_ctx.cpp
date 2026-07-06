@@ -206,7 +206,7 @@ static int decode_as_many_tokens_as_possible(
     if(free_pos_count < full_token_count)
     {
         MT_LOG(
-            "Not enough free positions in context t decode %d tokens, trying to decode possible maximum of %d tokens..\n",
+            "Not enough free positions in context to decode %d tokens, trying to decode possible maximum of %d tokens..\n",
             full_token_count,
             free_pos_count);
         buf.erase(buf.end() - full_token_count + free_pos_count, buf.end());
