@@ -1957,7 +1957,7 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_reinit(
 
         if(mt_llm_p_are_equal(*mt_p, *s->mt_p, true))
         {
-            MT_LOG("Doing reset, only..");
+            MT_LOG("Doing reset, only..\n");
             mt_llm_reset(
                 mt_p->sys_prompt,
                 &mt_p->top_k,
