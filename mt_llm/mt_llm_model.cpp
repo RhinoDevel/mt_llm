@@ -380,6 +380,7 @@ static const struct prompt_template s_gemma = { // <- Add this to "the" array.
 };
 
 static char const * const s_model_names_gemma4[] = {
+    "Gemma-4-E2B-It",
     "Gemma-4-E4B-It",
     "Gemma-4-31B-It",
     "Gemma-4 12B IT (smart Q4_0, QAT-lossless)",
