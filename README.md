@@ -48,8 +48,16 @@ Get the [llama.cpp](https://github.com/ggml-org/llama.cpp) submodule content:
 
 ## Linux
 
-No details for Linux here, yet, but you can take a look at the Windows
-instructions below and at the [Makefile](./mt_llm/Makefile).
+At least initially, feel free to use the minimalistic script
+[mt_init.sh](./mt_init.sh). It initializes all Git submodules, builds
+[llama.cpp](https://github.com/ggml-org/llama.cpp) and the **mt_llm**
+library file.
+
+Make sure to configure the system settings (at the top of the script) before
+executing the script!
+
+Additionally, take a look at the Windows instructions below and at the
+[Makefile](./mt_llm/Makefile).
 
 ## Windows
 
