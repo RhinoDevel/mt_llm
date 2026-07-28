@@ -383,6 +383,7 @@ static char const * const s_model_names_gemma4[] = {
     "Gemma-4-E2B-It",
     "Gemma-4-E4B-It",
     "Gemma-4-31B-It",
+    "Gemma-4-12B-It",
     "Gemma-4 12B IT (smart Q4_0, QAT-lossless)",
     // Add more, when necessary.
     NULL // <- DON'T FORGET THIS TERMINATING NULL ENTRY!
