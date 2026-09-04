@@ -1940,9 +1940,12 @@ MT_EXPORT_LLM_API void __stdcall mt_llm_deinit(int const slot_index)
 MT_EXPORT_LLM_API bool __stdcall mt_llm_reinit(
     struct mt_llm_p const * const mt_p, int const slot_index)
 {
-    mt_llm_node* node = mt_llm_node_find(s_slots, slot_index);
+    mt_llm_node* node = nullptr;
     mt_llm_s* s = nullptr;
 
+    mt_llm_log_set_enabled(mt_p->enable_log != 0);
+
+    node = mt_llm_node_find(s_slots, slot_index);
     if(mt_p == nullptr)
     {
         MT_LOG_ERR("No parameters given (are NULL)!");

@@ -92,6 +92,7 @@ struct mt_llm_p
     // the prompts wanted shall enable thinking/reasoning or disable it.
     uint8_t enable_thinking; // 0 = false, true otherwise.
 
+    uint8_t enable_log; // 0 = false, true otherwise.
     uint8_t enable_llama_cpp_log; // 0 = false, true otherwise.
 
     // Retrieves each token, the token's string representation and under some
