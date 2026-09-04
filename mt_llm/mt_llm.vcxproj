@@ -36,6 +36,7 @@
     <ClCompile Include="mt_llm.cpp" />
     <ClCompile Include="mt_llm_ctx.cpp" />
     <ClCompile Include="mt_llm_import.cpp" />
+    <ClCompile Include="mt_llm_log.cpp" />
     <ClCompile Include="mt_llm_node.cpp" />
     <ClCompile Include="mt_llm_model.cpp" />
     <ClCompile Include="mt_llm_p.cpp" />

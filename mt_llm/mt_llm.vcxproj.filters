@@ -74,5 +74,8 @@
     <ClCompile Include="mt_llm_node.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="mt_llm_log.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>
