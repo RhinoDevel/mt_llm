@@ -34,6 +34,9 @@ void mt_llm_log(
     char const * fmt,
     ...);
 
+/** Logging is DISABLED by default. This function has to be called at least once
+ *  to enable logging via MT_LOG_ERR and MT_LOG macros.
+ */
 void mt_llm_log_set_enabled(bool const is_enabled);
 
 #ifdef __cplusplus

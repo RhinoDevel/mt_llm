@@ -1943,6 +1943,8 @@ MT_EXPORT_LLM_API bool __stdcall mt_llm_reinit(
     mt_llm_node* node = nullptr;
     mt_llm_s* s = nullptr;
 
+    // Logging is disabled by default (see mt_llm_log.cpp), so e.g. an initial
+    // call to mt_llm_deinit() would never log.
     mt_llm_log_set_enabled(mt_p->enable_log != 0);
 
     node = mt_llm_node_find(s_slots, slot_index);

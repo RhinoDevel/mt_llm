@@ -7,7 +7,7 @@
 
 #include "mt_llm_log.h"
 
-static bool s_log_is_enabled = true; // Enabled by default.
+static bool s_log_is_enabled = false; // Disabled by default.
 
 void mt_llm_log(
     FILE * const stream,
